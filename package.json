@@ -1,0 +1,16 @@
+{
+  "name": "com.utilities.async",
+  "displayName": "Utilities.Async",
+  "description": "Utilities.Async description goes here.",
+  "keywords": [],
+  "version": "1.0.0",
+  "unity": "2019.4",
+  "license": "MIT",
+  "repository": {
+    "type": "git"
+  },
+  "author": "Stephen Hodgson",
+  "dependencies": {
+    "com.unity.editorcoroutines": "1.0.0"
+  }
+}
