@@ -42,8 +42,8 @@ public class ExampleAsyncScript : MonoBehaviour
     {
         try
         {
-            // always encapsulate try/catch around
-            // async methods called from unity events
+            // always encapsulate try/catch around async
+            // methods called from unity event functions
             await MyFunctionAsync();
 
             // switch to background thread to do a long
