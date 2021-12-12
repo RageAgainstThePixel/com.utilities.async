@@ -1,7 +1,7 @@
 {
   "name": "com.utilities.async",
   "displayName": "Utilities.Async",
-  "description": "Utilities.Async description goes here.",
+  "description": "A set of utilities to ease the use of async methods in Unity.",
   "keywords": [],
   "version": "1.0.0",
   "unity": "2019.4",
