@@ -14,7 +14,7 @@ For details on usage see the associated blog post [here](http://www.stevevermeul
 
 - Open your Unity project settings
 - Select the `Package Manager`
-![scoped-registries](Documentation~/images/package-manager-scopes.png)
+![scoped-registries](Utilities.Async/Packages/com.utilities.async/Documentation~/images/package-manager-scopes.png)
 - Add the OpenUPM package registry:
   - `Name: OpenUPM`
   - `URL: https://package.openupm.com`
