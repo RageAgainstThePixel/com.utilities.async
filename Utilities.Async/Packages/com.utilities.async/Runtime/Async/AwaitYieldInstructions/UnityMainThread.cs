@@ -25,7 +25,7 @@ using UnityEngine;
 namespace Utilities.Async.AwaitYieldInstructions
 {
     /// <summary>
-    /// This can be used as a way to return to the main unity thread 
+    /// This can be used as a way to return to the main unity thread
     /// when using multiple threads with async methods.
     /// </summary>
     public class UnityMainThread : CustomYieldInstruction

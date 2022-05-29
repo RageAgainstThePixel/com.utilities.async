@@ -31,6 +31,8 @@ namespace Utilities.Async.Internal
     public static class SyncContextUtility
     {
 #if UNITY_EDITOR
+        private const string EXEC = "Exec";
+
         private static System.Reflection.MethodInfo executionMethod;
 
         /// <summary>
@@ -45,7 +47,7 @@ namespace Utilities.Async.Internal
 
             if (executionMethod == null)
             {
-                executionMethod = SynchronizationContext.Current.GetType().GetMethod("Exec", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                executionMethod = SynchronizationContext.Current.GetType().GetMethod(EXEC, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             }
 
             UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
@@ -53,16 +55,15 @@ namespace Utilities.Async.Internal
         }
 
         [UnityEditor.InitializeOnLoadMethod]
-#endif
+#endif // UNITY_EDITOR
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Initialize()
         {
             UnitySynchronizationContext = SynchronizationContext.Current;
             UnityThreadId = Thread.CurrentThread.ManagedThreadId;
-
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.update += ExecuteContinuations;
-#endif
+#endif // UNITY_EDITOR
         }
 
         /// <summary>

@@ -75,7 +75,7 @@ namespace Utilities.Async
                 cancellationTokenSource.Token.Register(Exception);
 #if UNITY_EDITOR
                 var editorCancelled = false;
-                UnityEditor.EditorApplication.playModeStateChanged += playModeStateChanged => editorCancelled = true;
+                UnityEditor.EditorApplication.playModeStateChanged += _ => editorCancelled = true;
 #endif
 
                 while (!cancellationTokenSource.IsCancellationRequested)
@@ -115,7 +115,7 @@ namespace Utilities.Async
 
 #if UNITY_EDITOR
             var editorCancelled = false;
-            UnityEditor.EditorApplication.playModeStateChanged += playModeStateChanged => editorCancelled = true;
+            UnityEditor.EditorApplication.playModeStateChanged += _ => editorCancelled = true;
 #endif
             while (true)
             {
