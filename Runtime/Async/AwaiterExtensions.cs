@@ -97,6 +97,8 @@ namespace Utilities.Async
             return awaiter;
         }
 
+#if UNITY_ASSET_BUNDLES
+
         public static SimpleCoroutineAwaiter<AssetBundle> GetAwaiter(this AssetBundleCreateRequest instruction)
         {
             var awaiter = new SimpleCoroutineAwaiter<AssetBundle>();
@@ -112,6 +114,8 @@ namespace Utilities.Async
             RunOnUnityScheduler(() => RunCoroutine(enumerator));
             return awaiter;
         }
+
+#endif //UNITY_ASSET_BUNDLES
 
         public static SimpleCoroutineAwaiter<T> GetAwaiter<T>(this IEnumerator<T> coroutine)
         {
@@ -414,16 +418,24 @@ namespace Utilities.Async
                 awaiter.Complete(null);
             }
 
-            public static IEnumerator AssetBundleCreateRequest(SimpleCoroutineAwaiter<AssetBundle> awaiter, AssetBundleCreateRequest instruction)
-            {
-                yield return instruction;
-                awaiter.Complete(instruction.assetBundle, null);
-            }
-
             public static IEnumerator ReturnSelf<T>(SimpleCoroutineAwaiter<T> awaiter, T instruction)
             {
                 yield return instruction;
                 awaiter.Complete(instruction, null);
+            }
+
+            public static IEnumerator ResourceRequest(SimpleCoroutineAwaiter<Object> awaiter, ResourceRequest instruction)
+            {
+                yield return instruction;
+                awaiter.Complete(instruction.asset, null);
+            }
+
+#if UNITY_ASSET_BUNDLES
+
+            public static IEnumerator AssetBundleCreateRequest(SimpleCoroutineAwaiter<AssetBundle> awaiter, AssetBundleCreateRequest instruction)
+            {
+                yield return instruction;
+                awaiter.Complete(instruction.assetBundle, null);
             }
 
             public static IEnumerator AssetBundleRequest(SimpleCoroutineAwaiter<Object> awaiter, AssetBundleRequest instruction)
@@ -432,11 +444,8 @@ namespace Utilities.Async
                 awaiter.Complete(instruction.asset, null);
             }
 
-            public static IEnumerator ResourceRequest(SimpleCoroutineAwaiter<Object> awaiter, ResourceRequest instruction)
-            {
-                yield return instruction;
-                awaiter.Complete(instruction.asset, null);
-            }
+#endif // UNITY_ASSET_BUNDLES
+
         }
     }
 }
