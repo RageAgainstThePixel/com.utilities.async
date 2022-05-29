@@ -3,7 +3,7 @@
   "displayName": "Utilities.Async",
   "description": "A set of utilities to ease the use of async methods in Unity.",
   "keywords": [],
-  "version": "1.0.1",
+  "version": "1.0.2",
   "unity": "2019.4",
   "license": "MIT",
   "repository": {
@@ -11,6 +11,7 @@
   },
   "author": "Stephen Hodgson",
   "dependencies": {
+    "com.unity.addressables": "1.19.19",
     "com.unity.editorcoroutines": "1.0.0"
   }
 }
