@@ -1,5 +1,6 @@
 {
     "name": "Utilities.Async",
+    "rootNamespace": "",
     "references": [
         "GUID:478a2357cc57436488a56e564b08d223"
     ],
@@ -10,6 +11,12 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.modules.assetbundle",
+            "expression": "1.0.0",
+            "define": "UNITY_ASSET_BUNDLES"
+        }
+    ],
     "noEngineReferences": false
 }
