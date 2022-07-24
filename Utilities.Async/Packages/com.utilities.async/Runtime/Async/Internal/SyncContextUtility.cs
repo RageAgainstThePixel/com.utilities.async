@@ -54,9 +54,11 @@ namespace Utilities.Async.Internal
             executionMethod?.Invoke(SynchronizationContext.Current, null);
         }
 
+        static SyncContextUtility() => Initialize();
+
         [UnityEditor.InitializeOnLoadMethod]
 #endif // UNITY_EDITOR
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
         private static void Initialize()
         {
             UnitySynchronizationContext = SynchronizationContext.Current;
