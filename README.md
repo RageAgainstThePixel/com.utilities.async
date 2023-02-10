@@ -6,7 +6,7 @@ A Utilities.Async package for the [Unity](https://unity.com/) Game Engine.
 
 Adapted from https://github.com/svermeulen/Unity3dAsyncAwaitUtil
 
-For details on usage see the associated blog post [here](http://www.stevevermeulen.com/index.php/2017/09/23/using-async-await-in-unity3d-2017/).
+For details on usage see the associated blog post [here](https://web.archive.org/web/20170926153045/http://www.stevevermeulen.com/index.php/2017/09/23/using-async-await-in-unity3d-2017/).
 
 ## Installing
 
