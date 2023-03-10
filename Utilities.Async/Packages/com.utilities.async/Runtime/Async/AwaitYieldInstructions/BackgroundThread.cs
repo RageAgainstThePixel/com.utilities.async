@@ -22,17 +22,24 @@
 
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Utilities.Async.Internal;
 
 namespace Utilities.Async.AwaitYieldInstructions
 {
     /// <summary>
     /// Helper class for continuing executions on a background thread.
     /// </summary>
-    public class BackgroundThread
+    public sealed class BackgroundThread
     {
         public static ConfiguredTaskAwaitable.ConfiguredTaskAwaiter GetAwaiter()
         {
-            return Task.Run(() => { }).ConfigureAwait(false).GetAwaiter();
+            return Task.Run(async () =>
+            {
+                while (SyncContextUtility.IsMainThread)
+                {
+                    await Task.Delay(1).ConfigureAwait(false);
+                }
+            }).ConfigureAwait(false).GetAwaiter();
         }
     }
 }

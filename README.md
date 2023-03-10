@@ -6,7 +6,7 @@ A Utilities.Async package for the [Unity](https://unity.com/) Game Engine.
 
 Adapted from https://github.com/svermeulen/Unity3dAsyncAwaitUtil
 
-For details on usage see the associated blog post [here](https://web.archive.org/web/20170926153045/http://www.stevevermeulen.com/index.php/2017/09/23/using-async-await-in-unity3d-2017/).
+For details on usage see the [associated blog post here](https://web.archive.org/web/20170926153045/http://www.stevevermeulen.com/index.php/2017/09/23/using-async-await-in-unity3d-2017/).
 
 ## Installing
 
@@ -29,11 +29,13 @@ For details on usage see the associated blog post [here](https://web.archive.org
 - Open your Unity Package Manager
 - Add package from git url: `https://github.com/RageAgainstThePixel/com.utilities.async.git#upm`
 
-## Getting Started
+---
 
-### How to use
+## Documentation
 
 ```csharp
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
 using System;
 using System.Collections;
 using System.Threading.Tasks;
@@ -48,14 +50,14 @@ public class ExampleAsyncScript : MonoBehaviour
         {
             // always encapsulate try/catch around
             // async methods called from unity events
-            await MyFunctionAsync();
+            await MyFunctionAsync().ConfigureAwait(false);
+
+            // Get back to the main unity thread
+            await Awaiters.UnityMainThread;
 
             // switch to background thread to do a long
             // running process on background thread
             await Awaiters.BackgroundThread;
-
-            // Get back to the main unity thread
-            await Awaiters.UnityMainThread;
 
             // await on IEnumerator functions as well
             // for backwards compatibility or older code
@@ -75,6 +77,9 @@ public class ExampleAsyncScript : MonoBehaviour
     private IEnumerator MyEnumerableFunction()
     {
         yield return new WaitForSeconds(1);
+        // We can even yield async functions
+        // for better interoperability
+        yield return MyFunctionAsync();
     }
 }
 ```
