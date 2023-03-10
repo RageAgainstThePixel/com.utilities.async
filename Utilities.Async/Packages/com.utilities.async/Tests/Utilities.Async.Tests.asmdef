@@ -4,7 +4,8 @@
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "Utilities.Async"
+        "Utilities.Async",
+        "Unity.EditorCoroutines.Editor"
     ],
     "includePlatforms": [
         "Editor"

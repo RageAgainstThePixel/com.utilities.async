@@ -5,7 +5,7 @@ using System;
 using System.Collections;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using UnityEngine;
+using Unity.EditorCoroutines.Editor;
 using UnityEngine.TestTools;
 using Utilities.Async.AwaitYieldInstructions;
 using Utilities.Async.Internal;
@@ -70,7 +70,7 @@ namespace Utilities.Async.Tests
 
         private IEnumerator MyEnumerableFunction()
         {
-            yield return new WaitForSeconds(1);
+            yield return new EditorWaitForSeconds(1);
             // We can even yield async functions
             // for better interoperability
             yield return MyFunctionAsync();
