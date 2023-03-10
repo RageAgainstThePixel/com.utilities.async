@@ -62,50 +62,47 @@ namespace Utilities.Async
                 return await WaitUntil_Indefinite(element, predicate);
             }
 
-            using (var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(timeout)))
+            using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(timeout));
+            var tcs = new TaskCompletionSource<object>();
+
+            void Exception()
             {
-                var tcs = new TaskCompletionSource<object>();
-
-                void Exception()
-                {
-                    tcs.TrySetException(new TimeoutException());
-                    tcs.TrySetCanceled();
-                }
-
-                cancellationTokenSource.Token.Register(Exception);
-#if UNITY_EDITOR
-                var editorCancelled = false;
-                UnityEditor.EditorApplication.playModeStateChanged += _ => editorCancelled = true;
-#endif
-
-                while (!cancellationTokenSource.IsCancellationRequested)
-                {
-#if UNITY_EDITOR
-                    if (editorCancelled)
-                    {
-                        tcs.TrySetCanceled(CancellationToken.None);
-                    }
-#endif
-                    try
-                    {
-                        if (!predicate(element))
-                        {
-                            await Task.Delay(1, cancellationTokenSource.Token);
-                            continue;
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        tcs.TrySetException(e);
-                    }
-
-                    tcs.TrySetResult(Task.CompletedTask);
-                    break;
-                }
-
-                await tcs.Task;
+                tcs.TrySetException(new TimeoutException());
+                tcs.TrySetCanceled();
             }
 
+            cancellationTokenSource.Token.Register(Exception);
+#if UNITY_EDITOR
+            var editorCancelled = false;
+            UnityEditor.EditorApplication.playModeStateChanged += _ => editorCancelled = true;
+#endif
+
+            while (!cancellationTokenSource.IsCancellationRequested)
+            {
+#if UNITY_EDITOR
+                if (editorCancelled)
+                {
+                    tcs.TrySetCanceled(CancellationToken.None);
+                }
+#endif
+                try
+                {
+                    if (!predicate(element))
+                    {
+                        await Task.Delay(1, cancellationTokenSource.Token);
+                        continue;
+                    }
+                }
+                catch (Exception e)
+                {
+                    tcs.TrySetException(e);
+                }
+
+                tcs.TrySetResult(Task.CompletedTask);
+                break;
+            }
+
+            await tcs.Task;
             return element;
         }
 
