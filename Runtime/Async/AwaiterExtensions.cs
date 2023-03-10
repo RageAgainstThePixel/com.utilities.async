@@ -45,22 +45,78 @@ namespace Utilities.Async
     public static class AwaiterExtensions
     {
         /// <summary>
+        /// Runs the <see cref="Task"/> as <see cref="IEnumerator"/>.
+        /// </summary>
+        /// <param name="task">The <see cref="Task"/> to run.</param>
+        public static IEnumerator RunAsIEnumerator(this Task task)
+        {
+            while (!task.IsCompleted)
+            {
+                yield return null;
+            }
+
+            if (task.IsFaulted)
+            {
+                if (task.Exception != null)
+                {
+                    throw task.Exception;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Runs the <see cref="Task{T}"/> as <see cref="IEnumerator{T}"/>.
+        /// </summary>
+        /// <param name="task">The <see cref="Task{T}"/> to run.</param>
+        public static IEnumerator<T> RunAsIEnumerator<T>(this Task<T> task)
+        {
+            while (!task.IsCompleted)
+            {
+                yield return default;
+            }
+
+            if (task.IsFaulted)
+            {
+                if (task.Exception != null)
+                {
+                    throw task.Exception;
+                }
+            }
+            else
+            {
+                yield return task.Result;
+            }
+        }
+
+        /// <summary>
+        /// Runs the <see cref="Func{TResult}"/> as <see cref="IEnumerator"/>.
+        /// </summary>
+        /// <param name="asyncFunc"><see cref="Func{TResult}"/> to run.</param>
+        public static IEnumerator RunAsIEnumerator(Func<Task> asyncFunc)
+            => asyncFunc.Invoke().RunAsIEnumerator();
+
+        /// <summary>
+        /// Runs the <see cref="Func{TResult}"/> as <see cref="IEnumerator{T}"/>.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="asyncFunc"><see cref="Func{TResult}"/> to run.</param>
+        public static IEnumerator<T> RunAsIEnumerator<T>(Func<Task<T>> asyncFunc)
+            => asyncFunc.Invoke().RunAsIEnumerator();
+
+        /// <summary>
         /// Runs the async task synchronously.
         /// </summary>
         /// <param name="asyncFunc"><see cref="Func{TResult}"/> callback.</param>
         public static void RunSynchronously(Func<Task> asyncFunc)
-            => Task.Run(async () => await asyncFunc()).Wait();
+            => asyncFunc.Invoke().Wait();
 
         /// <summary>
         /// Runs the async task synchronously.
         /// </summary>
         /// <typeparam name="T">Return type.</typeparam>
         /// <param name="asyncFunc"><see cref="Func{TResult}"/> callback.</param>
-        /// <returns></returns>
         public static T RunSynchronously<T>(Func<Task<T>> asyncFunc)
-            => Task.Run(async () => await asyncFunc()).Result;
-
-        private class CoroutineRunner : MonoBehaviour { }
+            => asyncFunc.Invoke().Result;
 
         public static SimpleCoroutineAwaiter GetAwaiter(this WaitForSeconds instruction)
             => GetAwaiterReturnVoid(instruction);
@@ -68,8 +124,8 @@ namespace Utilities.Async
         public static SimpleCoroutineAwaiter GetAwaiter(this UnityMainThread instruction)
             => GetAwaiterReturnVoid(instruction);
 
-        public static SimpleCoroutineAwaiter GetAwaiter(this BackgroundThread instruction)
-            => GetAwaiterReturnVoid(instruction);
+        public static ConfiguredTaskAwaitable.ConfiguredTaskAwaiter GetAwaiter(this BackgroundThread _)
+            => BackgroundThread.GetAwaiter();
 
         public static SimpleCoroutineAwaiter GetAwaiter(this WaitForEndOfFrame instruction)
             => GetAwaiterReturnVoid(instruction);
@@ -155,7 +211,7 @@ namespace Utilities.Async
             {
                 if (coroutineRunner == null)
                 {
-                    GameObject go = GameObject.Find(nameof(CoroutineRunner));
+                    var go = GameObject.Find(nameof(CoroutineRunner));
 
                     if (go == null)
                     {
@@ -199,6 +255,8 @@ namespace Utilities.Async
                 SyncContextUtility.UnitySynchronizationContext.Post(SendOrPostCallback, null);
             }
         }
+
+        private class CoroutineRunner : MonoBehaviour { }
 
         /// <summary>
         /// Processes Coroutine and notifies completion with result.
@@ -310,7 +368,6 @@ namespace Utilities.Async
                 while (true)
                 {
                     var topWorker = processStack.Peek();
-
                     bool isDone;
 
                     try
