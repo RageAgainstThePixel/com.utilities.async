@@ -191,7 +191,7 @@ namespace Utilities.Async
             return awaiter;
         }
 
-        private static SimpleCoroutineAwaiter GetAwaiterReturnVoid(object instruction)
+        internal static SimpleCoroutineAwaiter GetAwaiterReturnVoid(object instruction)
         {
             var awaiter = new SimpleCoroutineAwaiter();
             var enumerator = InstructionWrappers.ReturnVoid(awaiter, instruction);
@@ -199,7 +199,7 @@ namespace Utilities.Async
             return awaiter;
         }
 
-        private static SimpleCoroutineAwaiter<T> GetAwaiterReturnSelf<T>(T instruction)
+        internal static SimpleCoroutineAwaiter<T> GetAwaiterReturnSelf<T>(T instruction)
         {
             var awaiter = new SimpleCoroutineAwaiter<T>();
             var enumerator = InstructionWrappers.ReturnSelf(awaiter, instruction);
@@ -207,7 +207,7 @@ namespace Utilities.Async
             return awaiter;
         }
 
-        private static void RunCoroutine(IEnumerator enumerator)
+        internal static void RunCoroutine(IEnumerator enumerator)
         {
             if (Application.isPlaying)
             {
@@ -222,13 +222,7 @@ namespace Utilities.Async
 
                     Object.DontDestroyOnLoad(go);
                     go.hideFlags = HideFlags.HideAndDontSave;
-
-                    coroutineRunner = go.GetComponent<CoroutineRunner>();
-
-                    if (coroutineRunner == null)
-                    {
-                        coroutineRunner = go.AddComponent<CoroutineRunner>();
-                    }
+                    coroutineRunner = go.TryGetComponent<CoroutineRunner>(out var runner) ? runner : go.AddComponent<CoroutineRunner>();
                 }
 
                 coroutineRunner.StartCoroutine(enumerator);
@@ -245,7 +239,7 @@ namespace Utilities.Async
 
         private static MonoBehaviour coroutineRunner;
 
-        private static void RunOnUnityScheduler(Action action)
+        internal static void RunOnUnityScheduler(Action action)
         {
             if (SynchronizationContext.Current == SyncContextUtility.UnitySynchronizationContext)
             {
