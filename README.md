@@ -87,7 +87,7 @@ public class ExampleAsyncScript : MonoBehaviour
 }
 ```
 
-### WebGL support
+### WebGL Support
 
 Shamelessly lifted from https://github.com/VolodymyrBS/WebGLThreadingPatcher
 
@@ -95,4 +95,4 @@ WebGL support is now supported, but be aware that long tasks will not run on the
 
 #### How does it work?
 
-WebGLPostBuildCallback uses a IIl2CppProcessor callback to rewrite entries in `mscorelib.dll` and change some method implementations. It changes ThreadPool methods that enqueue work items to delegate work to SynchronizationContext so all items will be executed in same thread. Also it patch Timer implementation to use Javascript timer functionality.
+`WebGLPostBuildCallback` uses a IIl2CppProcessor callback to rewrite entries in `mscorelib.dll` and change some method implementations. It changes `ThreadPool` methods that enqueue work items of delegate work to `SynchronizationContext` so all items will be executed in same thread. Also it patches `Timer` implementation to use Javascript timer functionality.
