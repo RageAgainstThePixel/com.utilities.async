@@ -16,9 +16,9 @@ For details on usage see the [associated blog post here](https://web.archive.org
 - Select the `Package Manager`
 ![scoped-registries](Utilities.Async/Packages/com.utilities.async/Documentation~/images/package-manager-scopes.png)
 - Add the OpenUPM package registry:
-  - `Name: OpenUPM`
-  - `URL: https://package.openupm.com`
-  - `Scope(s):`
+  - Name: `OpenUPM`
+  - URL: `https://package.openupm.com`
+  - Scope(s):
     - `com.utilities`
 - Open the Unity Package Manager window
 - Change the Registry from Unity to `My Registries`
@@ -32,6 +32,8 @@ For details on usage see the [associated blog post here](https://web.archive.org
 ---
 
 ## Documentation
+
+### Example
 
 ```csharp
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -57,6 +59,7 @@ public class ExampleAsyncScript : MonoBehaviour
 
             // switch to background thread to do a long
             // running process on background thread
+            // Not supported on WebGL but only throws a warning.
             await Awaiters.BackgroundThread;
 
             // await on IEnumerator functions as well
@@ -83,3 +86,13 @@ public class ExampleAsyncScript : MonoBehaviour
     }
 }
 ```
+
+### WebGL Support
+
+Shamelessly lifted from https://github.com/VolodymyrBS/WebGLThreadingPatcher
+
+WebGL support is now supported, but be aware that long tasks will not run on the background thread and will block the main thread. All tasks will be executed by just one thread so any blocking calls will freeze whole application. Basically it similar to async/await behavior in Blazor.
+
+#### How does it work?
+
+`WebGLPostBuildCallback` uses a IIl2CppProcessor callback to rewrite entries in `mscorelib.dll` and change some method implementations. It changes `ThreadPool` methods that enqueue work items of delegate work to `SynchronizationContext` so all items will be executed in same thread. Also it patches `Timer` implementation to use Javascript timer functionality.

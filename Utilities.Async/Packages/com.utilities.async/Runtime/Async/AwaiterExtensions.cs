@@ -27,6 +27,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Scripting;
 using Utilities.Async.AwaitYieldInstructions;
 using Utilities.Async.Internal;
 using Object = UnityEngine.Object;
@@ -120,8 +121,16 @@ namespace Utilities.Async
         public static SimpleCoroutineAwaiter GetAwaiter(this UnityMainThread instruction)
             => GetAwaiterReturnVoid(instruction);
 
+#if UNITY_WEBGL && !UNITY_EDITOR
+        public static SimpleCoroutineAwaiter GetAwaiter(this BackgroundThread instruction)
+        {
+            Debug.LogWarning($"{nameof(BackgroundThread)} not supported for {nameof(RuntimePlatform.WebGLPlayer)}");
+            return GetAwaiterReturnVoid(instruction);
+        }
+#else
         public static ConfiguredTaskAwaitable.ConfiguredTaskAwaiter GetAwaiter(this BackgroundThread _)
             => BackgroundThread.GetAwaiter();
+#endif
 
         public static SimpleCoroutineAwaiter GetAwaiter(this WaitForEndOfFrame instruction)
             => GetAwaiterReturnVoid(instruction);
@@ -203,6 +212,7 @@ namespace Utilities.Async
             return awaiter;
         }
 
+        [Preserve]
         internal static void RunCoroutine(IEnumerator enumerator)
         {
             if (Application.isPlaying)
@@ -233,8 +243,10 @@ namespace Utilities.Async
             }
         }
 
+        [Preserve]
         private static MonoBehaviour coroutineRunner;
 
+        [Preserve]
         internal static void RunOnUnityScheduler(Action action)
         {
             if (SynchronizationContext.Current == SyncContextUtility.UnitySynchronizationContext)
@@ -248,7 +260,56 @@ namespace Utilities.Async
             }
         }
 
-        private class CoroutineRunner : MonoBehaviour { }
+        [Preserve]
+        private class CoroutineRunner : MonoBehaviour
+        {
+#if UNITY_WEBGL
+            private Func<int> timerSchedulerLoop;
+
+            [Preserve]
+            private void Awake()
+            {
+                var timer = typeof(System.Threading.Timer);
+                var scheduler = timer.GetNestedType("Scheduler", System.Reflection.BindingFlags.NonPublic);
+
+                var timerSchedulerInstance = scheduler.GetProperty("Instance")?.GetValue(null);
+                timerSchedulerLoop = (Func<int>)scheduler
+                    .GetMethod("RunSchedulerLoop", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?
+                    .CreateDelegate(typeof(Func<int>), timerSchedulerInstance);
+            }
+
+            [Preserve]
+            private void Start()
+            {
+                StartCoroutine(TimerUpdateCoroutine());
+            }
+
+            [Preserve]
+            private IEnumerator TimerUpdateCoroutine()
+            {
+#if UNITY_EDITOR
+                if (Application.isEditor)
+                {
+                    yield break;
+                }
+#endif
+                while (true)
+                {
+                    var delay = timerSchedulerLoop();
+
+                    if (delay == -1)
+                    {
+                        yield return null;
+                    }
+                    else
+                    {
+                        yield return new WaitForSeconds(delay / 1000f);
+                    }
+                }
+            }
+#endif // UNITY_WEBGL
+        }
+
         private static IEnumerator ReturnVoid(SimpleCoroutineAwaiter awaiter, object instruction)
         {
             // For simple instructions we assume that they don't throw exceptions

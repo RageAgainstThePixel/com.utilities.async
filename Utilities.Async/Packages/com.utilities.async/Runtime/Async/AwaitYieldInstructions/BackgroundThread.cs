@@ -20,17 +20,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using UnityEngine;
+
+#if !UNITY_WEBGL || UNITY_EDITOR
+
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Utilities.Async.Internal;
+
+#endif
 
 namespace Utilities.Async.AwaitYieldInstructions
 {
     /// <summary>
     /// Helper class for continuing executions on a background thread.
     /// </summary>
-    public sealed class BackgroundThread
+    public sealed class BackgroundThread : CustomYieldInstruction
     {
+#if !UNITY_WEBGL || UNITY_EDITOR
         public static ConfiguredTaskAwaitable.ConfiguredTaskAwaiter GetAwaiter()
         {
             return Task.Run(async () =>
@@ -41,5 +48,7 @@ namespace Utilities.Async.AwaitYieldInstructions
                 }
             }).ConfigureAwait(false).GetAwaiter();
         }
+#endif // !UNITY_WEBGL || UNITY_EDITOR
+        public override bool keepWaiting => false;
     }
 }

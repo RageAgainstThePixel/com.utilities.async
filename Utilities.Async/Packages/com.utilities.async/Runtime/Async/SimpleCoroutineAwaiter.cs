@@ -9,7 +9,7 @@ namespace Utilities.Async
     /// <summary>
     /// Processes Coroutine and notifies completion.
     /// </summary>
-    public class SimpleCoroutineAwaiter : INotifyCompletion
+    public class SimpleCoroutineAwaiter : ICriticalNotifyCompletion
     {
         private Exception exception;
         private Action continuation;
@@ -41,11 +41,13 @@ namespace Utilities.Async
             }
         }
 
-        void INotifyCompletion.OnCompleted(Action notifyContinuation)
+        public void OnCompleted(Action notifyContinuation)
+            => UnsafeOnCompleted(notifyContinuation);
+
+        public void UnsafeOnCompleted(Action notifyContinuation)
         {
             Debug.Assert(continuation == null);
             Debug.Assert(!IsCompleted);
-
             continuation = notifyContinuation;
         }
     }
@@ -54,7 +56,7 @@ namespace Utilities.Async
     /// Processes Coroutine and notifies completion with result.
     /// </summary>
     /// <typeparam name="T">The result type.</typeparam>
-    public class SimpleCoroutineAwaiter<T> : INotifyCompletion
+    public class SimpleCoroutineAwaiter<T> : ICriticalNotifyCompletion
     {
         private Exception exception;
         private Action continuation;
@@ -90,7 +92,10 @@ namespace Utilities.Async
             }
         }
 
-        void INotifyCompletion.OnCompleted(Action notifyContinuation)
+        public void OnCompleted(Action notifyContinuation)
+            => UnsafeOnCompleted(notifyContinuation);
+
+        public void UnsafeOnCompleted(Action notifyContinuation)
         {
             Debug.Assert(continuation == null);
             Debug.Assert(!IsCompleted);

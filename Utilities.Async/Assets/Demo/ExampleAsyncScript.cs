@@ -16,7 +16,16 @@ public class ExampleAsyncScript : MonoBehaviour
     {
         try
         {
+            Debug.Log($"{nameof(ExampleAsyncScript)} starting...");
             var stopwatch = Stopwatch.StartNew();
+
+            // Make sure we're on the main unity thread
+            await Awaiters.UnityMainThread;
+            Debug.Log($"{nameof(UnityMainThread)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
+
+            // Wait for one second using built in coroutine yield
+            await new WaitForSeconds(1f);
+            Debug.Log($"{nameof(WaitForSeconds)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
 
             // always encapsulate try/catch around
             // async methods called from unity events
@@ -34,6 +43,7 @@ public class ExampleAsyncScript : MonoBehaviour
 
             // switch to background thread to do a long
             // running process on background thread
+            // Is not supported for WebGL!!!
             await Awaiters.BackgroundThread;
             Debug.Log($"{nameof(BackgroundThread)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
 
@@ -46,11 +56,13 @@ public class ExampleAsyncScript : MonoBehaviour
         {
             Debug.LogError(e);
         }
+
+        Debug.Log($"{nameof(ExampleAsyncScript)} Complete!");
     }
 
     private async Task MyFunctionAsync()
     {
-        await Task.Delay(1000);
+        await Task.Delay(1000).ConfigureAwait(false);
     }
 
     private IEnumerator MyEnumerableFunction()
