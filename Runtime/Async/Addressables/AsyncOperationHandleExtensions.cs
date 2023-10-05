@@ -22,13 +22,16 @@ namespace Utilities.Async.Addressables
         }
 
         public static SimpleCoroutineAwaiter<AsyncOperationHandle> GetAwaiter(this AsyncOperationHandle instruction)
-            => GetAwaiterReturnSelf(instruction);
+        {
+            var awaiter = new SimpleCoroutineAwaiter<AsyncOperationHandle>();
+            RunOnUnityScheduler(() => RunCoroutine(new AsyncOperationWrapper<AsyncOperationHandle>(instruction, awaiter).Run()));
+            return awaiter;
+        }
 
         public static SimpleCoroutineAwaiter<T> GetAwaiter<T>(this AsyncOperationHandle<T> instruction)
         {
             var awaiter = new SimpleCoroutineAwaiter<T>();
-            var enumerator = new AsyncOperationWrapper<T>(instruction, awaiter).Run();
-            RunOnUnityScheduler(() => RunCoroutine(enumerator));
+            RunOnUnityScheduler(() => RunCoroutine(new AsyncOperationWrapper<T>(instruction, awaiter).Run()));
             return awaiter;
         }
 
@@ -36,32 +39,23 @@ namespace Utilities.Async.Addressables
         {
             protected override bool CheckStatus(IEnumerator topWorker)
             {
-                topWorker.TryThrowException();
-                return topWorker.IsDone();
+                switch (topWorker)
+                {
+                    case AsyncOperationHandle operationHandle:
+                        operationHandle.TryThrowException();
+                        return operationHandle.IsDone;
+                    case AsyncOperationHandle<T> operationHandle:
+                        operationHandle.TryThrowException();
+                        return operationHandle.IsDone;
+                }
+
+                return !topWorker.MoveNext();
             }
 
-            public AsyncOperationWrapper(IEnumerator coroutine, SimpleCoroutineAwaiter<T> awaiter)
-                : base(coroutine, awaiter)
+            public AsyncOperationWrapper(AsyncOperationHandle operationHandle, SimpleCoroutineAwaiter<T> awaiter)
+                : base(operationHandle, awaiter)
             {
             }
-        }
-
-        internal static void TryThrowException(this IEnumerator enumerator)
-        {
-            if (enumerator is AsyncOperationHandle handle)
-            {
-                handle.TryThrowException();
-            }
-        }
-
-        internal static bool IsDone(this IEnumerator enumerator)
-        {
-            if (enumerator is AsyncOperationHandle handle)
-            {
-                return handle.IsDone;
-            }
-
-            return !enumerator.MoveNext();
         }
     }
 }
