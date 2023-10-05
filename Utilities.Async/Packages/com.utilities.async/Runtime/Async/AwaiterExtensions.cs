@@ -24,7 +24,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Scripting;
@@ -115,9 +114,6 @@ namespace Utilities.Async
         public static T RunSynchronously<T>(Func<Task<T>> asyncFunc)
             => asyncFunc.Invoke().Result;
 
-        public static SimpleCoroutineAwaiter GetAwaiter(this WaitForSeconds instruction)
-            => GetAwaiterReturnVoid(instruction);
-
         public static SimpleCoroutineAwaiter GetAwaiter(this UnityMainThread instruction)
             => GetAwaiterReturnVoid(instruction);
 
@@ -131,6 +127,9 @@ namespace Utilities.Async
         public static ConfiguredTaskAwaitable.ConfiguredTaskAwaiter GetAwaiter(this BackgroundThread _)
             => BackgroundThread.GetAwaiter();
 #endif
+
+        public static SimpleCoroutineAwaiter GetAwaiter(this WaitForSeconds instruction)
+            => GetAwaiterReturnVoid(instruction);
 
         public static SimpleCoroutineAwaiter GetAwaiter(this WaitForEndOfFrame instruction)
             => GetAwaiterReturnVoid(instruction);
@@ -148,15 +147,20 @@ namespace Utilities.Async
             => GetAwaiterReturnVoid(instruction);
 
 #if !UNITY_2023_1_OR_NEWER
+
         public static SimpleCoroutineAwaiter<AsyncOperation> GetAwaiter(this AsyncOperation instruction)
-            => GetAwaiterReturnSelf(instruction);
-#endif
+        {
+            var awaiter = new SimpleCoroutineAwaiter<AsyncOperation>();
+            RunOnUnityScheduler(() => RunCoroutine(ReturnAsyncOperation(awaiter, instruction)));
+            return awaiter;
+        }
+
+#endif // !UNITY_2023_1_OR_NEWER
 
         public static SimpleCoroutineAwaiter<Object> GetAwaiter(this ResourceRequest instruction)
         {
             var awaiter = new SimpleCoroutineAwaiter<Object>();
-            var enumerator = ResourceRequest(awaiter, instruction);
-            RunOnUnityScheduler(() => RunCoroutine(enumerator));
+            RunOnUnityScheduler(() => RunCoroutine(ResourceRequest(awaiter, instruction)));
             return awaiter;
         }
 
@@ -165,16 +169,14 @@ namespace Utilities.Async
         public static SimpleCoroutineAwaiter<AssetBundle> GetAwaiter(this AssetBundleCreateRequest instruction)
         {
             var awaiter = new SimpleCoroutineAwaiter<AssetBundle>();
-            var enumerator = AssetBundleCreateRequest(awaiter, instruction);
-            RunOnUnityScheduler(() => RunCoroutine(enumerator));
+            RunOnUnityScheduler(() => RunCoroutine(AssetBundleCreateRequest(awaiter, instruction)));
             return awaiter;
         }
 
         public static SimpleCoroutineAwaiter<Object> GetAwaiter(this AssetBundleRequest instruction)
         {
             var awaiter = new SimpleCoroutineAwaiter<Object>();
-            var enumerator = AssetBundleRequest(awaiter, instruction);
-            RunOnUnityScheduler(() => RunCoroutine(enumerator));
+            RunOnUnityScheduler(() => RunCoroutine(AssetBundleRequest(awaiter, instruction)));
             return awaiter;
         }
 
@@ -183,32 +185,21 @@ namespace Utilities.Async
         public static SimpleCoroutineAwaiter<T> GetAwaiter<T>(this IEnumerator<T> coroutine)
         {
             var awaiter = new SimpleCoroutineAwaiter<T>();
-            var enumerator = new CoroutineWrapper<T>(coroutine, awaiter).Run();
-            RunOnUnityScheduler(() => RunCoroutine(enumerator));
+            RunOnUnityScheduler(() => RunCoroutine(new CoroutineWrapper<T>(coroutine, awaiter).Run()));
             return awaiter;
         }
 
         public static SimpleCoroutineAwaiter<object> GetAwaiter(this IEnumerator coroutine)
         {
             var awaiter = new SimpleCoroutineAwaiter<object>();
-            var enumerator = new CoroutineWrapper<object>(coroutine, awaiter).Run();
-            RunOnUnityScheduler(() => RunCoroutine(enumerator));
+            RunOnUnityScheduler(() => RunCoroutine(new CoroutineWrapper<object>(coroutine, awaiter).Run()));
             return awaiter;
         }
 
         internal static SimpleCoroutineAwaiter GetAwaiterReturnVoid(object instruction)
         {
             var awaiter = new SimpleCoroutineAwaiter();
-            var enumerator = ReturnVoid(awaiter, instruction);
-            RunOnUnityScheduler(() => RunCoroutine(enumerator));
-            return awaiter;
-        }
-
-        internal static SimpleCoroutineAwaiter<T> GetAwaiterReturnSelf<T>(T instruction)
-        {
-            var awaiter = new SimpleCoroutineAwaiter<T>();
-            var enumerator = ReturnSelf(awaiter, instruction);
-            RunOnUnityScheduler(() => RunCoroutine(enumerator));
+            RunOnUnityScheduler(() => RunCoroutine(ReturnVoid(awaiter, instruction)));
             return awaiter;
         }
 
@@ -246,17 +237,41 @@ namespace Utilities.Async
         [Preserve]
         private static MonoBehaviour coroutineRunner;
 
+        private static readonly Queue<Action> actionQueue = new Queue<Action>();
+
         [Preserve]
         internal static void RunOnUnityScheduler(Action action)
         {
-            if (SynchronizationContext.Current == SyncContextUtility.UnitySynchronizationContext)
+            if (SyncContextUtility.IsMainThread)
             {
                 action();
             }
             else
             {
-                void SendOrPostCallback(object state) => action();
-                SyncContextUtility.UnitySynchronizationContext.Post(SendOrPostCallback, null);
+                actionQueue.Enqueue(action);
+                SyncContextUtility.UnitySynchronizationContext.Post(DeferredPostCallback, null);
+            }
+        }
+
+        private static void DeferredPostCallback(object state)
+        {
+            if (!SyncContextUtility.IsMainThread)
+            {
+                Debug.LogError("Failed to post deferred execution back on main thread!");
+                return;
+            }
+
+            while (actionQueue.TryPeek(out _))
+            {
+                if (actionQueue.TryDequeue(out var action))
+                {
+                    action();
+                }
+            }
+
+            if (actionQueue.Count > 0)
+            {
+                Debug.LogError("Failed to execute all queued actions!");
             }
         }
 
@@ -317,18 +332,21 @@ namespace Utilities.Async
             awaiter.Complete();
         }
 
-        private static IEnumerator ReturnSelf<T>(SimpleCoroutineAwaiter<T> awaiter, T instruction)
-        {
-            yield return instruction;
-            awaiter.Complete(instruction);
-        }
-
         private static IEnumerator ResourceRequest(SimpleCoroutineAwaiter<Object> awaiter, ResourceRequest instruction)
         {
             yield return instruction;
             awaiter.Complete(instruction.asset);
         }
 
+#if !UNITY_2023_1_OR_NEWER
+
+        private static IEnumerator ReturnAsyncOperation(SimpleCoroutineAwaiter<AsyncOperation> awaiter, AsyncOperation instruction)
+        {
+            yield return instruction;
+            awaiter.Complete(instruction);
+        }
+
+#endif // !UNITY_2023_1_OR_NEWER
 #if UNITY_ASSET_BUNDLES
 
         private static IEnumerator AssetBundleCreateRequest(SimpleCoroutineAwaiter<AssetBundle> awaiter, AssetBundleCreateRequest instruction)
@@ -344,6 +362,5 @@ namespace Utilities.Async
         }
 
 #endif // UNITY_ASSET_BUNDLES
-
     }
 }

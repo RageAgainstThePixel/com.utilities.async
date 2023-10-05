@@ -7,6 +7,7 @@ using System.Text;
 
 namespace Utilities.Async
 {
+    // ReSharper disable once ClassWithVirtualMembersNeverInherited.Global
     internal class CoroutineWrapper<T>
     {
         private readonly SimpleCoroutineAwaiter<T> awaiter;
@@ -86,7 +87,7 @@ namespace Utilities.Async
             {
                 if (result.Length != 0)
                 {
-                    result.Append(" -> ");
+                    result.Append("\n -> ");
                 }
 
                 result.Append(objType);

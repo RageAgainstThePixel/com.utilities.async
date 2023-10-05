@@ -1,7 +1,7 @@
+using JetBrains.Annotations;
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
-using UnityEngine;
 using static Utilities.Async.AwaiterExtensions;
 
 namespace Utilities.Async
@@ -16,9 +16,13 @@ namespace Utilities.Async
 
         public bool IsCompleted { get; private set; }
 
+        [UsedImplicitly]
         public void GetResult()
         {
-            Debug.Assert(IsCompleted);
+            if (!IsCompleted)
+            {
+                throw new InvalidOperationException("Tried to get result before task completed!");
+            }
 
             if (exception != null)
             {
@@ -28,7 +32,10 @@ namespace Utilities.Async
 
         public void Complete(Exception e = null)
         {
-            Debug.Assert(!IsCompleted);
+            if (IsCompleted)
+            {
+                throw new InvalidOperationException("Task has already been completed!");
+            }
 
             IsCompleted = true;
             exception = e;
@@ -46,8 +53,16 @@ namespace Utilities.Async
 
         public void UnsafeOnCompleted(Action notifyContinuation)
         {
-            Debug.Assert(continuation == null);
-            Debug.Assert(!IsCompleted);
+            if (continuation != null)
+            {
+                throw new InvalidOperationException("task continuation is not null!");
+            }
+
+            if (IsCompleted)
+            {
+                throw new InvalidOperationException("Task has already been completed!");
+            }
+
             continuation = notifyContinuation;
         }
     }
@@ -64,9 +79,13 @@ namespace Utilities.Async
 
         public bool IsCompleted { get; private set; }
 
+        [UsedImplicitly]
         public T GetResult()
         {
-            Debug.Assert(IsCompleted);
+            if (!IsCompleted)
+            {
+                throw new InvalidOperationException("Tried to get result before task completed!");
+            }
 
             if (exception != null)
             {
@@ -78,7 +97,10 @@ namespace Utilities.Async
 
         public void Complete(T taskResult, Exception e = null)
         {
-            Debug.Assert(!IsCompleted);
+            if (IsCompleted)
+            {
+                throw new InvalidOperationException("Task has already been completed!");
+            }
 
             IsCompleted = true;
             exception = e;
@@ -97,8 +119,16 @@ namespace Utilities.Async
 
         public void UnsafeOnCompleted(Action notifyContinuation)
         {
-            Debug.Assert(continuation == null);
-            Debug.Assert(!IsCompleted);
+            if (continuation != null)
+            {
+                throw new InvalidOperationException("task continuation is not null!");
+            }
+
+            if (IsCompleted)
+            {
+                throw new InvalidOperationException("Task has already been completed!");
+            }
+
             continuation = notifyContinuation;
         }
     }
