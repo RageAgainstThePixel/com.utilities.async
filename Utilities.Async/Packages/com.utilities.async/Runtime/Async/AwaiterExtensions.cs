@@ -22,6 +22,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -237,7 +238,7 @@ namespace Utilities.Async
         [Preserve]
         private static MonoBehaviour coroutineRunner;
 
-        private static readonly Queue<Action> actionQueue = new Queue<Action>();
+        private static readonly ConcurrentQueue<Action> actionQueue = new ConcurrentQueue<Action>();
 
         [Preserve]
         internal static void RunOnUnityScheduler(Action action)
@@ -261,11 +262,12 @@ namespace Utilities.Async
                 return;
             }
 
-            while (actionQueue.TryPeek(out _))
+            while (actionQueue.Count > 0)
             {
-                if (actionQueue.TryDequeue(out var action))
+                if (actionQueue.TryPeek(out _) &&
+                    actionQueue.TryDequeue(out var action))
                 {
-                    action();
+                    action?.Invoke();
                 }
             }
 
