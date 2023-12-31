@@ -62,6 +62,11 @@ public class ExampleAsyncScript : MonoBehaviour
             // Not supported on WebGL but only throws a warning.
             await Awaiters.BackgroundThread;
 
+            // an action meant to run on main thread,
+            // but invoked from background thread.
+            Action backgroundInvokedAction = BackgroundInvokedAction;
+            backgroundInvokedAction.InvokeOnMainThread();
+
             // await on IEnumerator functions as well
             // for backwards compatibility or older code
             await MyEnumerableFunction();
@@ -70,6 +75,11 @@ public class ExampleAsyncScript : MonoBehaviour
         {
             Debug.LogError(e);
         }
+    }
+
+    private void BackgroundInvokedAction()
+    {
+        Debug.Log(Application.dataPath);
     }
 
     private async Task MyFunctionAsync()

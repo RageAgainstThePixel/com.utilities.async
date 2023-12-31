@@ -1,6 +1,6 @@
 {
-    "name": "Utilities.Async.Demo",
-    "rootNamespace": "Utilities.Async.Demo",
+    "name": "Utilities.Async.Samples.Demo",
+    "rootNamespace": "Utilities.Async.Samples.Demo",
     "references": [
         "GUID:a6609af893242c7438d701ddd4cce46a"
     ],
