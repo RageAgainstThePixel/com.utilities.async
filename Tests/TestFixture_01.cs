@@ -48,6 +48,11 @@ namespace Utilities.Async.Tests
             // switch to background thread to do a long
             // running process on background thread
             await Awaiters.BackgroundThread;
+
+            Action backgroundInvokedAction = BackgroundInvokedAction;
+            backgroundInvokedAction.InvokeOnMainThread();
+
+            // should still be on background thread.
             Debug.Log($"{nameof(BackgroundThread)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
             Assert.IsFalse(SyncContextUtility.IsMainThread);
 
@@ -57,6 +62,12 @@ namespace Utilities.Async.Tests
             Debug.Log($"{nameof(MyEnumerableFunction)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
 
             Debug.Log($"{nameof(Test_02_Async)} Complete!");
+        }
+
+        private void BackgroundInvokedAction()
+        {
+            Debug.Log($"{nameof(BackgroundInvokedAction)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread}");
+            Assert.IsTrue(SyncContextUtility.IsMainThread);
         }
 
         private async Task MyFunctionAsync()
