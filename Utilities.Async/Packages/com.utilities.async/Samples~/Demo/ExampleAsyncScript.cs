@@ -9,7 +9,7 @@ using Utilities.Async.AwaitYieldInstructions;
 using Utilities.Async.Internal;
 using Debug = UnityEngine.Debug;
 
-namespace Utilities.Async.Sample
+namespace Utilities.Async.Samples.Demo
 {
     public class ExampleAsyncScript : MonoBehaviour
     {
