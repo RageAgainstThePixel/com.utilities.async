@@ -3,7 +3,7 @@ name: upm-subtree-split
 on:
   push:
     branches:
-    - main
+      - main
 
 jobs:
   upm-subtree-split:

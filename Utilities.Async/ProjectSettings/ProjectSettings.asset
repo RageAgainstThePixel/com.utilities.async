@@ -161,6 +161,7 @@ PlayerSettings:
     Android: com.utilities.async
     Lumin: com.Utilities.Async
     Standalone: com.utilities.async
+    WebGL: com.utilities.async
   buildNumber:
     Standalone: 0
     VisionOS: 0
@@ -779,8 +780,8 @@ PlayerSettings:
     Windows Store Apps: 6
   m_RenderingPath: 1
   m_MobileRenderingPath: 1
-  metroPackageName: com.Utilities.Async
-  metroPackageVersion: 0.1.0.0
+  metroPackageName: com.utilities.async
+  metroPackageVersion: 1.0.0.0
   metroCertificatePath: 
   metroCertificatePassword: 
   metroCertificateSubject: 
@@ -892,7 +893,7 @@ PlayerSettings:
   luminIsChannelApp: 0
   luminVersion:
     m_VersionCode: 1
-    m_VersionName: 
+    m_VersionName: 1.0.0
   hmiPlayerDataPath: 
   hmiForceSRGBBlit: 1
   embeddedLinuxEnableGamepadInput: 1
