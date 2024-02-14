@@ -10,6 +10,10 @@ For details on usage see the [associated blog post here](https://web.archive.org
 
 ## Installing
 
+Requires Unity 2019.4 LTS or higher.
+
+The recommended installation method is though the unity package manager and [OpenUPM](https://openupm.com/packages/com.utilities.async).
+
 ### Via Unity Package Manager and OpenUPM
 
 - Open your Unity project settings
