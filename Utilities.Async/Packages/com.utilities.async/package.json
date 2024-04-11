@@ -3,7 +3,7 @@
   "displayName": "Utilities.Async",
   "description": "A set of utilities to ease the use of async methods in Unity.",
   "keywords": [],
-  "version": "2.1.3",
+  "version": "2.1.4",
   "unity": "2019.4",
   "documentationUrl": "https://github.com/RageAgainstThePixel/com.utilities.async#documentation",
   "changelogUrl": "https://github.com/RageAgainstThePixel/com.utilities.async/releases",
@@ -16,7 +16,7 @@
   "url": "https://github.com/StephenHodgson",
   "dependencies": {
     "com.unity.editorcoroutines": "1.0.0",
-    "com.unity.test-framework": "1.3.5",
+    "com.unity.test-framework": "1.3.9",
     "com.unity.nuget.mono-cecil": "1.11.4"
   },
   "samples": [
