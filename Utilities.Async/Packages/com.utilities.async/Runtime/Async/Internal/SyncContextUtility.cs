@@ -42,7 +42,12 @@ namespace Utilities.Async.Internal
         {
             if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode) { return; }
             UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
-            executionMethod ??= SynchronizationContext.Current.GetType().GetMethod(EXEC, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            if (executionMethod == null)
+            {
+                executionMethod = SynchronizationContext.Current.GetType().GetMethod(EXEC, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            }
+
             executionMethod?.Invoke(SynchronizationContext.Current, null);
         }
 
