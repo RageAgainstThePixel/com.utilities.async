@@ -62,48 +62,53 @@ namespace Utilities.Async
                 return await WaitUntil_Indefinite(element, predicate);
             }
 
-            using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(timeout));
-            var tcs = new TaskCompletionSource<object>();
-
-            void Exception()
+            using (var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(timeout)))
             {
-                tcs.TrySetException(new TimeoutException());
-                tcs.TrySetCanceled();
-            }
+                var tcs = new TaskCompletionSource<object>();
 
-            cancellationTokenSource.Token.Register(Exception);
-#if UNITY_EDITOR
-            var editorCancelled = false;
-            UnityEditor.EditorApplication.playModeStateChanged += _ => editorCancelled = true;
-#endif
-
-            while (!cancellationTokenSource.IsCancellationRequested)
-            {
-#if UNITY_EDITOR
-                if (editorCancelled)
+                void Exception()
                 {
-                    tcs.TrySetCanceled(CancellationToken.None);
+                    tcs.TrySetException(new TimeoutException());
+                    tcs.TrySetCanceled();
                 }
+
+                cancellationTokenSource.Token.Register(Exception);
+#if UNITY_EDITOR
+                var editorCancelled = false;
+                UnityEditor.EditorApplication.playModeStateChanged += _ => editorCancelled = true;
 #endif
-                try
+
+                while (!cancellationTokenSource.IsCancellationRequested)
                 {
-                    if (!predicate(element))
+#if UNITY_EDITOR
+                    if (editorCancelled)
                     {
-                        await Task.Delay(1, cancellationTokenSource.Token);
-                        continue;
+                        tcs.TrySetCanceled(CancellationToken.None);
                     }
-                }
-                catch (Exception e)
-                {
-                    tcs.TrySetException(e);
+#endif
+                    try
+                    {
+                        if (!predicate(element))
+                        {
+                            await Task.Delay(1, cancellationTokenSource.Token);
+
+                            continue;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        tcs.TrySetException(e);
+                    }
+
+                    tcs.TrySetResult(Task.CompletedTask);
+
+                    break;
                 }
 
-                tcs.TrySetResult(Task.CompletedTask);
-                break;
+                await tcs.Task;
+
+                return element;
             }
-
-            await tcs.Task;
-            return element;
         }
 
         private static async Task<T> WaitUntil_Indefinite<T>(T element, Func<T, bool> predicate)
