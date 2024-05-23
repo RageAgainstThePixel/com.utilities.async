@@ -5,3 +5,4 @@ using UnityEngine.Scripting;
 
 [assembly: AlwaysLinkAssembly]
 [assembly: InternalsVisibleTo("Utilities.Async.Addressables")]
+[assembly: InternalsVisibleTo("Utilities.Async.Editor")]
