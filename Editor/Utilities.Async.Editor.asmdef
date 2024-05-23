@@ -1,7 +1,10 @@
 {
     "name": "Utilities.Async.Editor",
     "rootNamespace": "Utilities.Async.Editor",
-    "references": [],
+    "references": [
+        "GUID:a6609af893242c7438d701ddd4cce46a",
+        "GUID:478a2357cc57436488a56e564b08d223"
+    ],
     "includePlatforms": [
         "Editor"
     ],
