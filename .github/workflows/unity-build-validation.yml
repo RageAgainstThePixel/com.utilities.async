@@ -1,0 +1,78 @@
+name: Unity Build And Test
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Every Sunday at midnight
+  push:
+    branches:
+      - 'main'
+  pull_request:
+    branches:
+      - '*'
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    timeout-minutes: 20
+    env:
+      UNITY_PROJECT_PATH: ''
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-13]
+        unity-versions:
+          - 2019.4.40f1 (ffc62b691db5)
+          - 2020.3.48f1 (b805b124c6b7)
+          - 2021.3.41f1 (6c5a9e20c022)
+          - 2022.3.40f1 (cbdda657d2f0)
+          - 6000.0.13f1 (53a692e3fca9)
+        include: # for each os specify the build targets
+          - os: ubuntu-latest
+            build-target: StandaloneLinux64
+          - os: windows-latest
+            build-target: StandaloneWindows64
+          - os: macos-13
+            build-target: StandaloneOSX
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: true
+        # Installs the Unity Editor based on your project version text file
+        # sets -> env.UNITY_EDITOR_PATH
+        # sets -> env.UNITY_PROJECT_PATH
+      - uses: RageAgainstThePixel/unity-setup@v1
+        with:
+          unity-version: ${{ matrix.unity-versions }}
+          build-targets: ${{ matrix.build-target }}
+        # Activates the installation with the provided credentials
+      - uses: RageAgainstThePixel/activate-unity-license@v1
+        with:
+          license: 'Personal' # Choose license type to use [ Personal, Professional ]
+          username: ${{ secrets.UNITY_USERNAME }}
+          password: ${{ secrets.UNITY_PASSWORD }}
+          # serial: ${{ secrets.UNITY_SERIAL }} # Required for pro activations
+      - uses: RageAgainstThePixel/unity-action@v1
+        name: '${{ matrix.build-target }}-Validate'
+        with:
+          log-name: '${{ matrix.build-target }}-Validate'
+          args: '-quit -nographics -batchmode -executeMethod Utilities.Editor.BuildPipeline.Validate -importTMProEssentialsAsset'
+      - uses: RageAgainstThePixel/unity-action@v1
+        name: '${{ matrix.build-target }}-Test'
+        with:
+          log-name: '${{ matrix.build-target }}-Test'
+          args: '-quit -nographics -batchmode -runTests -testPlatform editmode -testResults ${{ github.workflow }}/Logs/${{ matrix.build-target }}.xml'
+      - name: Publish Test Results
+        if: ${{ github.ref != 'refs/heads/main' && github.event_name != 'push' && always() }}
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: ${{ github.workflow }}/Logs/**/*.xml
+          comment_mode: off
+          report_individual_runs: true
+          compare_to_earlier_commit: false
+      - uses: RageAgainstThePixel/unity-action@v1
+        name: '${{ matrix.build-target }}-Build'
+        with:
+          log-name: '${{ matrix.build-target }}-Build'
+          args: '-quit -nographics -batchmode -executeMethod Utilities.Editor.BuildPipeline.StartCommandLineBuild'
