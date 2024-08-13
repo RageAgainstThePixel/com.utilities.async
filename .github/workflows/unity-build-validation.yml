@@ -62,13 +62,10 @@ jobs:
           log-name: '${{ matrix.build-target }}-Test'
           build-target: ${{ matrix.build-target }}
           args: '-quit -nographics -batchmode -runTests -testPlatform editmode -testResults ${{ github.workspace }}/Logs/${{ matrix.build-target }}.xml'
-      - name: Publish Test Results
-        uses: dorny/test-reporter@v1
-        if: ${{ github.ref != 'refs/heads/main' && github.event_name != 'push' && (success() || failure()) }}
+      - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.build-target }}-Test-Report
+          name: ${{ matrix.build-target }}-Test-
           path: ${{ github.workspace }}/Logs/${{ matrix.build-target }}.xml
-          reporter: dotnet-nunit
       - uses: RageAgainstThePixel/unity-action@v1
         name: '${{ matrix.build-target }}-Build'
         with:
