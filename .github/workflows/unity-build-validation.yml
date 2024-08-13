@@ -57,12 +57,12 @@ jobs:
         name: '${{ matrix.build-target }}-Test'
         with:
           log-name: '${{ matrix.build-target }}-Test'
-          args: '-quit -nographics -batchmode -runTests -testPlatform editmode -testResults ${{ github.workflow }}/Logs/${{ matrix.build-target }}.xml'
+          args: '-quit -nographics -batchmode -runTests -testPlatform editmode -testResults ${{ github.workspace }}/Logs/${{ matrix.build-target }}.xml'
       - name: Publish Test Results
         if: ${{ github.ref != 'refs/heads/main' && github.event_name != 'push' && always() }}
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
-          files: ${{ github.workflow }}/Logs/**/*.xml
+          files: ${{ github.workspace }}/Logs/**/*.xml
           comment_mode: off
           report_individual_runs: true
           compare_to_earlier_commit: false
