@@ -64,7 +64,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.build-target }}-Test
-          path: '**/*.xml'
+          path: '${{ github.workspace }}/**/*.xml'
       - uses: RageAgainstThePixel/unity-action@v1
         name: '${{ matrix.build-target }}-Build'
         with:
