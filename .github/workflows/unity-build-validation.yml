@@ -17,7 +17,7 @@ permissions:
   pull-requests: write
 jobs:
   build:
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       UNITY_PROJECT_PATH: ''
     runs-on: ${{ matrix.os }}
