@@ -60,11 +60,11 @@ jobs:
         with:
           log-name: '${{ matrix.build-target }}-Test'
           build-target: ${{ matrix.build-target }}
-          args: '-quit -nographics -batchmode -runTests -testPlatform EditMode -testResults "${{ github.workspace }}/Logs/${{ matrix.build-target }}.xml"'
+          args: '-quit -nographics -batchmode -runTests -testPlatform ${{ matrix.build-target }} -testResults ${{ github.workspace }}/Logs/${{ matrix.build-target }}-test-results.xml'
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.build-target }}-Test-
-          path: ${{ github.workspace }}/Logs/${{ matrix.build-target }}.xml
+          path: ${{ github.workspace }}/Logs/${{ matrix.build-target }}-test-results.xml
       - uses: RageAgainstThePixel/unity-action@v1
         name: '${{ matrix.build-target }}-Build'
         with:
