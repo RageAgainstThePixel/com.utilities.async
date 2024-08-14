@@ -60,7 +60,7 @@ jobs:
         with:
           log-name: '${{ matrix.build-target }}-Test'
           build-target: ${{ matrix.build-target }}
-          args: '-quit -nographics -batchmode -runTests -testPlatform ${{ matrix.build-target }}'
+          args: '-quit -nographics -batchmode -runTests -testPlatform EditMode'
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.build-target }}-Test
