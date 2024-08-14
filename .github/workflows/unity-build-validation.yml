@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           clean: true
-      - uses: RageAgainstThePixel/unity-setup@v1
+      - uses: RageAgainstThePixel/unity-setup@development
         with:
           unity-version: ${{ matrix.unity-versions }}
           build-targets: ${{ matrix.build-target }}
