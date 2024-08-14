@@ -50,12 +50,12 @@ jobs:
           license: 'Personal'
           username: ${{ secrets.UNITY_USERNAME }}
           password: ${{ secrets.UNITY_PASSWORD }}
-      - uses: RageAgainstThePixel/unity-action@v1
+      - uses: RageAgainstThePixel/unity-action@development
         name: '${{ matrix.build-target }}-Validate'
         with:
           log-name: '${{ matrix.build-target }}-Validate'
           args: '-quit -nographics -batchmode -executeMethod Utilities.Editor.BuildPipeline.UnityPlayerBuildTools.ValidateProject -importTMProEssentialsAsset'
-      - uses: RageAgainstThePixel/unity-action@v1
+      - uses: RageAgainstThePixel/unity-action@development
         name: '${{ matrix.build-target }}-Test'
         with:
           log-name: '${{ matrix.build-target }}-Test'
@@ -65,7 +65,7 @@ jobs:
         with:
           name: ${{ matrix.unity-versions }} ${{ matrix.build-target }}-Test-Results
           path: '${{ github.workspace }}/**/*.xml'
-      - uses: RageAgainstThePixel/unity-action@v1
+      - uses: RageAgainstThePixel/unity-action@development
         name: '${{ matrix.build-target }}-Build'
         with:
           log-name: '${{ matrix.build-target }}-Build'
