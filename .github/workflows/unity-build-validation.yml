@@ -62,6 +62,7 @@ jobs:
           build-target: ${{ matrix.build-target }}
           args: '-nographics -batchmode -runTests -testPlatform EditMode -testResults "${{ github.workspace }}/Logs/${{ matrix.build-target }}-results.xml"'
       - uses: actions/upload-artifact@v4
+        if: always() || failure()
         with:
           name: ${{ matrix.unity-versions }} ${{ matrix.build-target }}-Test-Results
           path: '${{ github.workspace }}/**/*.xml'
@@ -70,3 +71,8 @@ jobs:
         with:
           log-name: '${{ matrix.build-target }}-Build'
           args: '-quit -nographics -batchmode -executeMethod Utilities.Editor.BuildPipeline.UnityPlayerBuildTools.StartCommandLineBuild'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.unity-versions }} ${{ matrix.build-target }}-Build
+          path: '${{ github.workspace }}/**/*.log'
