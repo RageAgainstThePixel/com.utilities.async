@@ -60,7 +60,7 @@ jobs:
         with:
           log-name: '${{ matrix.build-target }}-Test'
           build-target: ${{ matrix.build-target }}
-          args: '-nographics -batchmode -runTests -testPlatform ${{ matrix.build-target }} -testResults "${{ github.workspace }}/Logs/${{ matrix.build-target }}-results.xml"'
+          args: '-nographics -batchmode -runTests -testPlatform EditMode -testResults "${{ github.workspace }}/Logs/${{ matrix.build-target }}-results.xml"'
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.unity-versions }} ${{ matrix.build-target }}-Test-Results
