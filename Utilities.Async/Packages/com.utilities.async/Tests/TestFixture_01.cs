@@ -32,18 +32,21 @@ namespace Utilities.Async.Tests
             // async methods called from unity events
             // this is a long running task that returns to main thread
             await MyFunctionAsync().ConfigureAwait(true);
-            Debug.Log($"{nameof(MyFunctionAsync)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
-            Assert.IsTrue(SyncContextUtility.IsMainThread);
+            var isMainThread = SyncContextUtility.IsMainThread;
+            Debug.Log($"{nameof(MyFunctionAsync)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
+            Assert.IsTrue(isMainThread);
 
             // A long running task that ends up on a background thread
             await MyFunctionAsync().ConfigureAwait(false);
-            Debug.Log($"{nameof(MyFunctionAsync)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
-            Assert.IsFalse(SyncContextUtility.IsMainThread);
+            isMainThread = SyncContextUtility.IsMainThread;
+            Debug.Log($"{nameof(MyFunctionAsync)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
+            Assert.IsFalse(isMainThread);
 
             // Get back to the main unity thread
             await Awaiters.UnityMainThread;
-            Debug.Log($"{nameof(UnityMainThread)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
-            Assert.IsTrue(SyncContextUtility.IsMainThread);
+            isMainThread = SyncContextUtility.IsMainThread;
+            Debug.Log($"{nameof(UnityMainThread)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
+            Assert.IsTrue(isMainThread);
 
             // switch to background thread to do a long
             // running process on background thread
@@ -53,8 +56,9 @@ namespace Utilities.Async.Tests
             backgroundInvokedAction.InvokeOnMainThread();
 
             // should still be on background thread.
-            Debug.Log($"{nameof(BackgroundThread)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
-            Assert.IsFalse(SyncContextUtility.IsMainThread);
+            isMainThread = SyncContextUtility.IsMainThread;
+            Debug.Log($"{nameof(BackgroundThread)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
+            Assert.IsFalse(isMainThread);
 
             // await on IEnumerator functions as well
             // for backwards compatibility or older code
@@ -66,8 +70,9 @@ namespace Utilities.Async.Tests
 
         private void BackgroundInvokedAction()
         {
-            Debug.Log($"{nameof(BackgroundInvokedAction)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread}");
-            Assert.IsTrue(SyncContextUtility.IsMainThread);
+            var isMainThread = SyncContextUtility.IsMainThread;
+            Debug.Log($"{nameof(BackgroundInvokedAction)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread}");
+            Assert.IsTrue(isMainThread);
         }
 
         private async Task MyFunctionAsync()
