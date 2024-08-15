@@ -51,6 +51,9 @@ namespace Utilities.Async.Tests
             // switch to background thread to do a long
             // running process on background thread
             await Awaiters.BackgroundThread;
+            isMainThread = SyncContextUtility.IsMainThread;
+            Debug.Log($"{nameof(BackgroundThread)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
+            Assert.IsFalse(isMainThread);
 
             Action backgroundInvokedAction = BackgroundInvokedAction;
             backgroundInvokedAction.InvokeOnMainThread();
