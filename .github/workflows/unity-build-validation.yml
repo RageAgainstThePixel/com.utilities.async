@@ -71,7 +71,7 @@ jobs:
           log-name: '${{ matrix.build-target }}-Build'
           args: '-quit -nographics -batchmode -executeMethod Utilities.Editor.BuildPipeline.UnityPlayerBuildTools.StartCommandLineBuild'
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() || failure()
         with:
           name: ${{ matrix.unity-versions }} ${{ matrix.build-target }}-Build
           path: '${{ github.workspace }}/**/*.log'
