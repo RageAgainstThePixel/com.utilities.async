@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ ( github.event_name == 'pull_request' || github.event.action == 'synchronize' ) }}
 permissions:
   checks: write
   pull-requests: write
@@ -24,11 +24,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-13]
-        unity-versions:
-          - 2020.3.48f1 (b805b124c6b7)
-          - 2021.3.41f1 (6c5a9e20c022)
-          - 2022.3.40f1 (cbdda657d2f0)
-          - 6000.0.13f1 (53a692e3fca9)
+        unity-versions: [2021.x, 2022.x, 6000.x]
         include:
           - os: ubuntu-latest
             build-target: StandaloneLinux64
@@ -38,8 +34,6 @@ jobs:
             build-target: StandaloneOSX
     steps:
       - uses: actions/checkout@v4
-        with:
-          clean: true
       - uses: RageAgainstThePixel/unity-setup@v1
         with:
           unity-version: ${{ matrix.unity-versions }}
@@ -60,18 +54,17 @@ jobs:
           log-name: '${{ matrix.build-target }}-Test'
           build-target: ${{ matrix.build-target }}
           args: '-nographics -batchmode -runTests -testPlatform EditMode -testResults "${{ github.workspace }}/Logs/${{ matrix.build-target }}-results.xml"'
-      - uses: actions/upload-artifact@v4
-        if: always() || failure()
-        with:
-          name: ${{ matrix.unity-versions }} ${{ matrix.build-target }}-Test-Results
-          path: '${{ github.workspace }}/**/*.xml'
       - uses: RageAgainstThePixel/unity-action@v1
         name: '${{ matrix.build-target }}-Build'
         with:
           log-name: '${{ matrix.build-target }}-Build'
           args: '-quit -nographics -batchmode -executeMethod Utilities.Editor.BuildPipeline.UnityPlayerBuildTools.StartCommandLineBuild'
       - uses: actions/upload-artifact@v4
-        if: always() || failure()
+        if: success() || failure()
         with:
-          name: ${{ matrix.unity-versions }} ${{ matrix.build-target }}-Build
-          path: '${{ github.workspace }}/**/*.log'
+          compression-level: 0
+          retention-days: 1
+          name: '${{ github.run_number }}.${{ github.run_attempt }}-${{ matrix.os }}-${{ matrix.unity-versions }}-${{ matrix.build-target }}-Artifacts'
+          path: |
+            ${{ github.workspace }}/**/*.log
+            ${{ github.workspace }}/**/*.xml
