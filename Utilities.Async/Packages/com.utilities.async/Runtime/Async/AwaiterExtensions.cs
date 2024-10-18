@@ -164,6 +164,59 @@ namespace Utilities.Async
             }
         }
 
+        /// <summary>
+        /// Runs <see cref="AsyncOperation"/> with <see cref="IProgress{T}"/>.
+        /// </summary>
+        /// <param name="operation"><see cref="AsyncOperation"/>.</param>
+        /// <param name="progress"><see cref="IProgress{T}"/></param>
+        /// <returns><see cref="AsyncOperation"/></returns>
+        public static async Task<AsyncOperation> WithProgress(this AsyncOperation operation, IProgress<float> progress)
+        {
+            if (operation.isDone) { return operation; }
+            Thread backgroundThread = null;
+            var opTcs = new TaskCompletionSource<AsyncOperation>();
+            try
+            {
+                if (progress != null)
+                {
+                    backgroundThread = new Thread(() => ProgressThread(operation, progress))
+                    {
+                        IsBackground = true
+                    };
+
+                    async void ProgressThread(AsyncOperation asyncOp, IProgress<float> _progress)
+                    {
+                        await Awaiters.UnityMainThread;
+
+                        try
+                        {
+                            while (!asyncOp.isDone)
+                            {
+                                _progress.Report(asyncOp.progress);
+                                await Awaiters.UnityMainThread;
+                            }
+                        }
+                        catch (Exception)
+                        {
+                            // throw away
+                        }
+                    }
+                }
+
+                backgroundThread?.Start();
+                operation.completed += OnCompleted;
+                return await opTcs.Task;
+            }
+            finally
+            {
+                operation.completed -= OnCompleted;
+                progress?.Report(100f);
+                backgroundThread?.Join();
+            }
+
+            void OnCompleted(AsyncOperation op) => opTcs.SetResult(op);
+        }
+
         public static SimpleCoroutineAwaiter GetAwaiter(this UnityMainThread instruction)
             => GetAwaiterReturnVoid(instruction);
 

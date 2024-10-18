@@ -5,6 +5,7 @@ using System.Collections;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Utilities.Async.AwaitYieldInstructions;
 using Utilities.Async.Internal;
 using Debug = UnityEngine.Debug;
@@ -57,13 +58,19 @@ namespace Utilities.Async.Samples.Demo
                 // for backwards compatibility or older code
                 await MyEnumerableFunction();
                 Debug.Log($"{nameof(MyEnumerableFunction)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
+
+                // you can even get progress callbacks for AsyncOperations!
+                await SceneManager.LoadSceneAsync(0)
+                    .WithProgress(new Progress<float>(f => Debug.Log($"LoadSceneAsync | {nameof(SyncContextUtility.IsMainThread)} ? {SyncContextUtility.IsMainThread} | {f}%")));
             }
             catch (Exception e)
             {
                 Debug.LogError(e);
             }
-
-            Debug.Log($"{nameof(ExampleAsyncScript)} Complete!");
+            finally
+            {
+                Debug.Log($"{nameof(ExampleAsyncScript)} Complete!");
+            }
         }
 
         private void BackgroundInvokedAction()
