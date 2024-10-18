@@ -90,8 +90,7 @@ namespace Utilities.Async
                     {
                         if (!predicate(element))
                         {
-                            await Task.Delay(1, cancellationTokenSource.Token);
-
+                            await Task.Yield();
                             continue;
                         }
                     }
@@ -101,7 +100,6 @@ namespace Utilities.Async
                     }
 
                     tcs.TrySetResult(Task.CompletedTask);
-
                     break;
                 }
 
@@ -131,7 +129,7 @@ namespace Utilities.Async
                 {
                     if (!predicate(element))
                     {
-                        await Task.Delay(1);
+                        await Task.Yield();
                         continue;
                     }
                 }

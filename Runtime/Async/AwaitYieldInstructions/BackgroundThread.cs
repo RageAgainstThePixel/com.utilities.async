@@ -44,7 +44,7 @@ namespace Utilities.Async.AwaitYieldInstructions
             {
                 while (SyncContextUtility.IsMainThread)
                 {
-                    await Task.Delay(1).ConfigureAwait(false);
+                    await Task.Yield();
                 }
             }).ConfigureAwait(false).GetAwaiter();
         }
