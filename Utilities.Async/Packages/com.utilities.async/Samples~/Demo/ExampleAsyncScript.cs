@@ -57,6 +57,9 @@ namespace Utilities.Async.Samples.Demo
                 // for backwards compatibility or older code
                 await MyEnumerableFunction();
                 Debug.Log($"{nameof(MyEnumerableFunction)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
+
+                await SceneManager.LoadSceneAsync(0)
+                    .WithProgress(new Progress<float>(f => Debug.Log($"LoadSceneAsync | {nameof(SyncContextUtility.IsMainThread)} ? {SyncContextUtility.IsMainThread} | {f:P}%")));
             }
             catch (Exception e)
             {
