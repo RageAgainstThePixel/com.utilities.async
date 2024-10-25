@@ -22,8 +22,12 @@ namespace Utilities.Async
             this.awaiter = awaiter;
         }
 
-        protected virtual bool CheckStatus(IEnumerator worker)
-            => !worker.MoveNext();
+        protected virtual bool CheckStatus(IEnumerator worker, out object next)
+        {
+            var isDone = !worker.MoveNext();
+            next = isDone ? worker.Current : default;
+            return isDone;
+        }
 
         public IEnumerator Run()
         {
@@ -31,26 +35,25 @@ namespace Utilities.Async
             {
                 var topWorker = processStack.Peek();
                 bool isDone;
-                object currentWorker = null;
+                object currentWorker = default;
 
                 try
                 {
-                    isDone = CheckStatus(topWorker);
+                    isDone = CheckStatus(topWorker, out var nextWorker);
 
                     if (isDone)
                     {
-                        currentWorker = topWorker.Current;
+                        currentWorker = nextWorker;
                     }
                 }
                 catch (Exception e)
                 {
                     // The IEnumerators we have in the process stack do not tell us the
-                    // actual names of the coroutine methods but it does tell us the objects
+                    // actual names of the coroutine methods, but it does tell us the objects
                     // that the IEnumerators are associated with, so we can at least try
                     // adding that to the exception output
                     var objectTrace = GenerateObjectTrace(processStack);
                     awaiter.Complete(default, objectTrace.Any() ? new Exception(GenerateObjectTraceMessage(objectTrace), e) : e);
-
                     yield break;
                 }
 
@@ -60,7 +63,7 @@ namespace Utilities.Async
 
                     if (processStack.Count == 0)
                     {
-                        awaiter.Complete((T)(currentWorker ?? topWorker.Current));
+                        awaiter.Complete((T)currentWorker);
                         yield break;
                     }
                 }

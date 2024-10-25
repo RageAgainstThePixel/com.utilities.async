@@ -15,7 +15,8 @@ namespace Utilities.Async.Addressables
 
         public static void TryThrowException(this AsyncOperationHandle handle)
         {
-            if (handle.OperationException != null)
+            if (handle.IsValid() &&
+                handle.OperationException != null)
             {
                 throw handle.OperationException;
             }
@@ -37,19 +38,28 @@ namespace Utilities.Async.Addressables
 
         internal class AsyncOperationWrapper<T> : CoroutineWrapper<T>
         {
-            protected override bool CheckStatus(IEnumerator topWorker)
+            protected override bool CheckStatus(IEnumerator topWorker, out object nextWorker)
             {
+                nextWorker = default;
                 switch (topWorker)
                 {
                     case AsyncOperationHandle operationHandle:
+                        if (operationHandle.IsValid())
+                        {
+                            nextWorker = topWorker.Current;
+                        }
                         operationHandle.TryThrowException();
                         return operationHandle.IsDone;
                     case AsyncOperationHandle<T> operationHandle:
+                        if (operationHandle.IsValid())
+                        {
+                            nextWorker = topWorker.Current;
+                        }
                         operationHandle.TryThrowException();
                         return operationHandle.IsDone;
+                    default:
+                        return base.CheckStatus(topWorker, out nextWorker);
                 }
-
-                return !topWorker.MoveNext();
             }
 
             public AsyncOperationWrapper(AsyncOperationHandle operationHandle, SimpleCoroutineAwaiter<T> awaiter)
