@@ -63,7 +63,18 @@ namespace Utilities.Async
 
                     if (processStack.Count == 0)
                     {
-                        awaiter.Complete((T)currentWorker);
+                        T result = default;
+
+                        try
+                        {
+                            result = (T)(currentWorker ?? topWorker.Current);
+                        }
+                        catch (Exception)
+                        {
+                            // ignored
+                        }
+
+                        awaiter.Complete(result ?? default);
                         yield break;
                     }
                 }
