@@ -41,6 +41,9 @@ jobs:
         with:
           unity-version: ${{ matrix.unity-versions }}
           build-targets: ${{ matrix.build-target }}
+      - name: Install libtinfo5
+        if: runner.os == 'Linux' && matrix.unity-versions == '2020.x'
+        run: sudo apt-get install libtinfo5
       - uses: RageAgainstThePixel/activate-unity-license@v1
         with:
           license: 'Personal'
