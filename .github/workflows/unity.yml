@@ -104,4 +104,3 @@ jobs:
         if: success() || failure()
         with:
           test-results: ${{ github.workspace }}/Logs/*-results.xml
-          test-suite-name: 'Utilities.Async Test Results'
