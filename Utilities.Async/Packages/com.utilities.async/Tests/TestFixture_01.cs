@@ -90,12 +90,5 @@ namespace Utilities.Async.Tests
             // for better interoperability
             yield return MyFunctionAsync();
         }
-
-        [Test]
-        public void Test_03_FAIL()
-        {
-            // This will fail the test
-            Assert.Fail("This is a failing test");
-        }
     }
 }
