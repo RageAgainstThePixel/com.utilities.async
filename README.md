@@ -16,6 +16,14 @@ The recommended installation method is though the unity package manager and [Ope
 
 ### Via Unity Package Manager and OpenUPM
 
+#### Terminal
+
+```terminal
+openupm add com.utilities.async
+```
+
+#### Manual
+
 - Open your Unity project settings
 - Select the `Package Manager`
 ![scoped-registries](Utilities.Async/Packages/com.utilities.async/Documentation~/images/package-manager-scopes.png)
