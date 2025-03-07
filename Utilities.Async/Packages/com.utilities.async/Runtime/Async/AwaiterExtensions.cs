@@ -128,14 +128,14 @@ namespace Utilities.Async
 
             using (cancellationToken.Register(state => ((TaskCompletionSource<object>)state).TrySetResult(null), tcs))
             {
-                var resultTask = await Task.WhenAny(task, tcs.Task);
+                var resultTask = await Task.WhenAny(task, tcs.Task).ConfigureAwait(true);
 
                 if (resultTask == tcs.Task)
                 {
                     throw new OperationCanceledException(cancellationToken);
                 }
 
-                await task;
+                await task.ConfigureAwait(true);
             }
         }
 
@@ -153,14 +153,14 @@ namespace Utilities.Async
 
             using (cancellationToken.Register(state => ((TaskCompletionSource<object>)state).TrySetResult(null), tcs))
             {
-                var resultTask = await Task.WhenAny(task, tcs.Task);
+                var resultTask = await Task.WhenAny(task, tcs.Task).ConfigureAwait(true);
 
                 if (resultTask == tcs.Task)
                 {
                     throw new OperationCanceledException(cancellationToken);
                 }
 
-                return await task;
+                return await task.ConfigureAwait(true);
             }
         }
 
@@ -184,7 +184,7 @@ namespace Utilities.Async
                         IsBackground = true
                     };
 
-                    async void ProgressThread(AsyncOperation asyncOp, IProgress<float> _progress)
+                    async void ProgressThread(AsyncOperation asyncOp, IProgress<float> tProgress)
                     {
                         await Awaiters.UnityMainThread;
 
@@ -192,7 +192,7 @@ namespace Utilities.Async
                         {
                             while (!asyncOp.isDone)
                             {
-                                _progress.Report(asyncOp.progress);
+                                tProgress.Report(asyncOp.progress);
                                 await Awaiters.UnityMainThread;
                             }
                         }
@@ -205,7 +205,7 @@ namespace Utilities.Async
 
                 backgroundThread?.Start();
                 operation.completed += OnCompleted;
-                return await opTcs.Task;
+                return await opTcs.Task.ConfigureAwait(true);
             }
             finally
             {

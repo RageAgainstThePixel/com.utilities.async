@@ -59,7 +59,7 @@ namespace Utilities.Async
         {
             if (timeout == -1)
             {
-                return await WaitUntil_Indefinite(element, predicate);
+                return await WaitUntil_Indefinite(element, predicate).ConfigureAwait(true);
             }
 
             using (var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(timeout)))
@@ -103,7 +103,7 @@ namespace Utilities.Async
                     break;
                 }
 
-                await tcs.Task;
+                await tcs.Task.ConfigureAwait(true);
 
                 return element;
             }
@@ -142,8 +142,46 @@ namespace Utilities.Async
                 break;
             }
 
-            await tcs.Task;
+            await tcs.Task.ConfigureAwait(true);
             return element;
+        }
+
+        /// <summary>
+        /// Use this awaiter to wait for a specified amount of time.
+        /// </summary>
+        /// <param name="milliseconds"></param>
+        public static Task DelayAsync(int milliseconds)
+            => DelayAsync(milliseconds, CancellationToken.None);
+
+        /// <summary>
+        /// Use this awaiter to wait for a specified amount of time.
+        /// </summary>
+        /// <param name="milliseconds"></param>
+        /// <param name="cancellationToken"></param>
+        public static Task DelayAsync(int milliseconds, CancellationToken cancellationToken)
+            => DelayAsync(TimeSpan.FromMilliseconds(milliseconds), cancellationToken);
+
+        /// <summary>
+        /// Use this awaiter to wait for a specified amount of time.
+        /// </summary>
+        /// <param name="timeSpan"></param>
+        public static Task DelayAsync(TimeSpan timeSpan)
+            => DelayAsync(timeSpan, CancellationToken.None);
+
+        /// <summary>
+        /// Use this awaiter to wait for a specified amount of time.
+        /// </summary>
+        /// <param name="timeSpan"></param>
+        /// <param name="cancellationToken"></param>
+        public static async Task DelayAsync(TimeSpan timeSpan, CancellationToken cancellationToken)
+        {
+            var startTime = DateTime.UtcNow;
+            var endTime = startTime + timeSpan;
+            while (DateTime.UtcNow < endTime)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await Task.Yield();
+            }
         }
     }
 }
