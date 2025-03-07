@@ -4,17 +4,25 @@
 
 A Utilities.Async package for the [Unity](https://unity.com/) Game Engine.
 
-Adapted from https://github.com/svermeulen/Unity3dAsyncAwaitUtil
+Adapted from <https://github.com/svermeulen/Unity3dAsyncAwaitUtil>
 
 For details on usage see the [associated blog post here](https://web.archive.org/web/20170926153045/http://www.stevevermeulen.com/index.php/2017/09/23/using-async-await-in-unity3d-2017/).
 
 ## Installing
 
-Requires Unity 2019.4 LTS or higher.
+Requires Unity 2020.3 LTS or higher.
 
 The recommended installation method is though the unity package manager and [OpenUPM](https://openupm.com/packages/com.utilities.async).
 
 ### Via Unity Package Manager and OpenUPM
+
+#### Terminal
+
+```terminal
+openupm add com.utilities.async
+```
+
+#### Manual
 
 - Open your Unity project settings
 - Select the `Package Manager`
@@ -46,6 +54,7 @@ using System;
 using System.Collections;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Utilities.Async;
 
 public class ExampleAsyncScript : MonoBehaviour
@@ -74,6 +83,10 @@ public class ExampleAsyncScript : MonoBehaviour
             // await on IEnumerator functions as well
             // for backwards compatibility or older code
             await MyEnumerableFunction();
+
+            // you can even get progress callbacks for AsyncOperations!
+            await SceneManager.LoadSceneAsync(0)
+                .WithProgress(new Progress<float>(f => Debug.Log(f)));
         }
         catch (Exception e)
         {
@@ -103,7 +116,7 @@ public class ExampleAsyncScript : MonoBehaviour
 
 ### WebGL Support
 
-Shamelessly lifted from https://github.com/VolodymyrBS/WebGLThreadingPatcher
+Shamelessly lifted from <https://github.com/VolodymyrBS/WebGLThreadingPatcher>
 
 WebGL support is now supported, but be aware that long tasks will not run on the background thread and will block the main thread. All tasks will be executed by just one thread so any blocking calls will freeze whole application. Basically it similar to async/await behavior in Blazor.
 

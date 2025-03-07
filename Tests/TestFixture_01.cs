@@ -4,6 +4,7 @@ using NUnit.Framework;
 using System;
 using System.Collections;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 using Unity.EditorCoroutines.Editor;
 using UnityEngine.TestTools;
@@ -80,7 +81,8 @@ namespace Utilities.Async.Tests
 
         private async Task MyFunctionAsync()
         {
-            await Task.Delay(1000).ConfigureAwait(false);
+            // similar to Task.Delay(1000)
+            await Awaiters.DelayAsync(1000).ConfigureAwait(false);
         }
 
         private IEnumerator MyEnumerableFunction()
