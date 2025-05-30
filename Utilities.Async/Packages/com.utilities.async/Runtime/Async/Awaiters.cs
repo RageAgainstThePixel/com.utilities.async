@@ -164,6 +164,21 @@ namespace Utilities.Async
         /// <summary>
         /// Use this awaiter to wait for a specified amount of time.
         /// </summary>
+        /// <param name="seconds"></param>
+        public static Task DelayAsync(float seconds)
+            => DelayAsync(TimeSpan.FromSeconds(seconds), CancellationToken.None);
+
+        /// <summary>
+        /// Use this awaiter to wait for a specified amount of time.
+        /// </summary>
+        /// <param name="seconds"></param>
+        /// <param name="cancellationToken"></param>
+        public static Task DelayAsync(float seconds, CancellationToken cancellationToken)
+            => DelayAsync(TimeSpan.FromSeconds(seconds), cancellationToken);
+
+        /// <summary>
+        /// Use this awaiter to wait for a specified amount of time.
+        /// </summary>
         /// <param name="timeSpan"></param>
         public static Task DelayAsync(TimeSpan timeSpan)
             => DelayAsync(timeSpan, CancellationToken.None);
@@ -175,6 +190,7 @@ namespace Utilities.Async
         /// <param name="cancellationToken"></param>
         public static async Task DelayAsync(TimeSpan timeSpan, CancellationToken cancellationToken)
         {
+#if UNITY_WEBGL && !UNITY_EDITOR
             var startTime = DateTime.UtcNow;
             var endTime = startTime + timeSpan;
             while (DateTime.UtcNow < endTime)
@@ -182,6 +198,9 @@ namespace Utilities.Async
                 cancellationToken.ThrowIfCancellationRequested();
                 await Task.Yield();
             }
+#else
+            await Task.Delay(timeSpan, cancellationToken).ConfigureAwait(true);
+#endif
         }
     }
 }

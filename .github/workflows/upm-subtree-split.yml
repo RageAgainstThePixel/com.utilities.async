@@ -1,10 +1,11 @@
 name: upm-subtree-split
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 jobs:
   upm-subtree-split:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
