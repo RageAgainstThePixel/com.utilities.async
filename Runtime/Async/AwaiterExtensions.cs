@@ -388,7 +388,7 @@ namespace Utilities.Async
             [Preserve]
             private void Awake()
             {
-                var timer = typeof(System.Threading.Timer);
+                var timer = typeof(Timer);
                 var scheduler = timer.GetNestedType("Scheduler", System.Reflection.BindingFlags.NonPublic);
 
                 var timerSchedulerInstance = scheduler.GetProperty("Instance")?.GetValue(null);

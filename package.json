@@ -3,7 +3,7 @@
   "displayName": "Utilities.Async",
   "description": "A set of utilities to ease the use of async methods in Unity.",
   "keywords": [],
-  "version": "2.2.2",
+  "version": "2.2.3",
   "unity": "2020.3",
   "documentationUrl": "https://github.com/RageAgainstThePixel/com.utilities.async#documentation",
   "changelogUrl": "https://github.com/RageAgainstThePixel/com.utilities.async/releases",
