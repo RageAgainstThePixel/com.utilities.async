@@ -190,9 +190,7 @@ namespace Utilities.Async
         /// <param name="cancellationToken"></param>
         public static async Task DelayAsync(TimeSpan timeSpan, CancellationToken cancellationToken)
         {
-#if UNITY_EDITOR
-            await Task.Delay(timeSpan, cancellationToken).ConfigureAwait(true);
-#else
+#if UNITY_WEBGL && !UNITY_EDITOR
             var startTime = DateTime.UtcNow;
             var endTime = startTime + timeSpan;
             while (DateTime.UtcNow < endTime)
@@ -200,6 +198,8 @@ namespace Utilities.Async
                 cancellationToken.ThrowIfCancellationRequested();
                 await Task.Yield();
             }
+#else
+            await Task.Delay(timeSpan, cancellationToken).ConfigureAwait(true);
 #endif
         }
     }
