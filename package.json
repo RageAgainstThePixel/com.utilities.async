@@ -3,14 +3,15 @@
   "displayName": "Utilities.Async",
   "description": "A set of utilities to ease the use of async methods in Unity.",
   "keywords": [],
-  "version": "2.2.3",
+  "version": "2.2.4",
   "unity": "2020.3",
   "documentationUrl": "https://github.com/RageAgainstThePixel/com.utilities.async#documentation",
   "changelogUrl": "https://github.com/RageAgainstThePixel/com.utilities.async/releases",
   "license": "MIT",
   "repository": {
+    "url": "https://github.com/RageAgainstThePixel/com.utilities.async.git",
     "type": "git",
-    "repository": "https://github.com/RageAgainstThePixel/com.utilities.async.git"
+    "revision": "1eccf230e694d57843ca7ecd7fead23c8e40b48e"
   },
   "author": "Stephen Hodgson",
   "url": "https://github.com/StephenHodgson",
