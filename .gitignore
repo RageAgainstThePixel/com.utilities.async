@@ -30,6 +30,7 @@ TextMesh Pro.meta
 TextMesh Pro/
 UIElementsSchema/
 *packages-lock.json
+boot.config
 
 # ============ #
 # Certificates #
