@@ -11,31 +11,36 @@
     "6000.1",
     "6000.2"
   ],
-  "build-args": "-sceneList Assets/Samples/Demo/AsyncSample.unity",
   "include": [
     {
       "os": "ubuntu-latest",
-      "build-target": "StandaloneLinux64"
+      "build-target": "StandaloneLinux64",
+      "build-args": "-sceneList Assets/Samples/Demo/AsyncSample.unity"
     },
     {
       "os": "ubuntu-latest",
-      "build-target": "WebGL"
+      "build-target": "WebGL",
+      "build-args": "-sceneList Assets/Samples/Demo/AsyncSample.unity"
     },
     {
       "os": "ubuntu-latest",
-      "build-target": "Android"
+      "build-target": "Android",
+      "build-args": "-sceneList Assets/Samples/Demo/AsyncSample.unity"
     },
     {
       "os": "windows-latest",
-      "build-target": "StandaloneWindows64"
+      "build-target": "StandaloneWindows64",
+      "build-args": "-sceneList Assets/Samples/Demo/AsyncSample.unity"
     },
     {
       "os": "macos-latest",
-      "build-target": "StandaloneOSX"
+      "build-target": "StandaloneOSX",
+      "build-args": "-sceneList Assets/Samples/Demo/AsyncSample.unity"
     },
     {
       "os": "macos-latest",
-      "build-target": "iOS"
+      "build-target": "iOS",
+      "build-args": "-sceneList Assets/Samples/Demo/AsyncSample.unity"
     }
   ]
 }
