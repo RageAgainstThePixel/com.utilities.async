@@ -16,6 +16,7 @@ jobs:
     if: github.event.pull_request.draft == false
     permissions:
       contents: read
+      actions: write
     secrets: inherit
     uses: RageAgainstThePixel/workflows/.github/workflows/run-build-and-test-unity-package.yml@dev
     with:
