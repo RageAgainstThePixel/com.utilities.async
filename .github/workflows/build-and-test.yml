@@ -12,14 +12,43 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{(github.event_name == 'pull_request' || github.event.action == 'synchronize')}}
 jobs:
-  build-and-test:
+  setup:
     if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github/
+      - uses: RageAgainstThePixel/job-builder@v1
+        id: setup-jobs
+        with:
+          build-options: ./.github/workflows/build-options.json
+          group-by: unity-version
+          job-name-prefix: Build and Test
+    outputs:
+      jobs: ${{ steps.setup-jobs.outputs.jobs }}
+  validate:
+    if: ${{ needs.setup.outputs.jobs }}
+    needs: setup
+    name: ${{ matrix.jobs.name }}
     permissions:
       contents: read
       actions: write
+    strategy:
+      matrix: ${{ fromJSON(needs.setup.outputs.jobs) }}
+      fail-fast: false
+      max-parallel: 1
     secrets: inherit
-    uses: RageAgainstThePixel/workflows/.github/workflows/run-build-and-test-unity-package.yml@dev
+    uses: RageAgainstThePixel/workflows/.github/workflows/build-and-test-unity-package.yml@main
     with:
-      build-options: ./.github/workflows/build-options.json
-      group-by: unity-version
-      job-name-prefix: Build and Test
+      matrix: ${{ toJSON(matrix.jobs.matrix) }}
+  timeline:
+    needs: [setup, validate]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: Kesin11/actions-timeline@c2f474758e8e9ac6f37ec64a6442dead7fd1dad2 # v2.2.5
