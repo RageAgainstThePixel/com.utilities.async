@@ -25,7 +25,7 @@ jobs:
         id: setup-jobs
         with:
           build-options: ./.github/workflows/build-options.json
-          group-by: 'unity-version'
+          group-by: unity-version
           job-name-prefix: 'Build and Test'
     outputs:
       jobs: ${{ steps.setup-jobs.outputs.jobs }}
