@@ -46,6 +46,7 @@ jobs:
       matrix: ${{ toJSON(matrix.jobs.matrix) }}
   timeline:
     needs: [setup, validate]
+    if: always()
     runs-on: ubuntu-latest
     permissions:
       actions: read
