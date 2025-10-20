@@ -50,6 +50,5 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: read
-      checks: write
     steps:
       - uses: Kesin11/actions-timeline@c2f474758e8e9ac6f37ec64a6442dead7fd1dad2 # v2.2.5
