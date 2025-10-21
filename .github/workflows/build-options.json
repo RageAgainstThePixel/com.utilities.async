@@ -11,9 +11,6 @@
     "6000.1",
     "6000.2"
   ],
-  "build-args": [
-    "-sceneList Assets/Samples/Demo/AsyncSample.unity"
-  ],
   "include": [
     {
       "os": "ubuntu-latest",
