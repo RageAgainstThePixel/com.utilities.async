@@ -10,7 +10,7 @@ For details on usage see the [associated blog post here](https://web.archive.org
 
 ## Installing
 
-Requires Unity 2021.4 LTS or higher.
+Requires Unity 2021.3 LTS or higher.
 
 The recommended installation method is though the unity package manager and [OpenUPM](https://openupm.com/packages/com.utilities.async).
 
