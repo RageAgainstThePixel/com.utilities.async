@@ -14,6 +14,10 @@
   "include": [
     {
       "os": "ubuntu-latest",
+      "build-target": "Android"
+    },
+    {
+      "os": "ubuntu-latest",
       "build-target": "StandaloneLinux64"
     },
     {
@@ -21,12 +25,12 @@
       "build-target": "WebGL"
     },
     {
-      "os": "ubuntu-latest",
-      "build-target": "Android"
+      "os": "windows-latest",
+      "build-target": "StandaloneWindows64"
     },
     {
       "os": "windows-latest",
-      "build-target": "StandaloneWindows64"
+      "build-target": "WSAPlayer"
     },
     {
       "os": "macos-latest",
