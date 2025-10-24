@@ -25,8 +25,10 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Scripting;
 using Utilities.Async.AwaitYieldInstructions;
@@ -340,7 +342,20 @@ namespace Utilities.Async
         [Preserve]
         private static MonoBehaviour coroutineRunner;
 
-        private static readonly ConcurrentQueue<Action> actionQueue = new ConcurrentQueue<Action>();
+        // We store delegates as GCHandle pointers (IntPtr) inside a NativeQueue<IntPtr>.
+        // Native containers only accept unmanaged/blittable types, so we use IntPtr
+        // and reconstruct the GCHandle on the main thread when dequeuing.
+        private static NativeQueue<IntPtr> actionQueue;
+        private static readonly object actionQueueLock = new object();
+
+        static AwaiterExtensions()
+        {
+            actionQueue = new NativeQueue<IntPtr>(Allocator.Persistent);
+            // Ensure we dispose the native queue and free any remaining GCHandles on shutdown
+            Application.quitting += DisposeActionQueue;
+            AppDomain.CurrentDomain.DomainUnload += (_, _) => DisposeActionQueue();
+            AppDomain.CurrentDomain.ProcessExit += (_, _) => DisposeActionQueue();
+        }
 
         [Preserve]
         internal static void RunOnUnityScheduler(Action action)
@@ -351,7 +366,15 @@ namespace Utilities.Async
             }
             else
             {
-                actionQueue.Enqueue(action);
+                // Allocate a GCHandle for the delegate so we can pass an IntPtr into the native queue.
+                var handle = GCHandle.Alloc(action);
+                var ptr = GCHandle.ToIntPtr(handle);
+
+                lock (actionQueueLock)
+                {
+                    actionQueue.Enqueue(ptr);
+                }
+
                 SyncContextUtility.UnitySynchronizationContext.Post(DeferredPostCallback, null);
             }
         }
@@ -364,18 +387,68 @@ namespace Utilities.Async
                 return;
             }
 
-            while (actionQueue.Count > 0)
+            while (true)
             {
-                if (actionQueue.TryPeek(out _) &&
-                    actionQueue.TryDequeue(out var action))
+                IntPtr ptr = IntPtr.Zero;
+                bool dequeued = false;
+
+                lock (actionQueueLock)
                 {
+                    if (actionQueue.Count > 0)
+                    {
+                        dequeued = actionQueue.TryDequeue(out ptr);
+                    }
+                }
+
+                if (!dequeued)
+                {
+                    break;
+                }
+
+                try
+                {
+                    var handle = GCHandle.FromIntPtr(ptr);
+                    var action = handle.Target as Action;
+                    handle.Free();
                     action?.Invoke();
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogException(ex);
                 }
             }
 
-            if (actionQueue.Count > 0)
+            lock (actionQueueLock)
             {
-                Debug.LogError("Failed to execute all queued actions!");
+                if (actionQueue.Count > 0)
+                {
+                    Debug.LogError("Failed to execute all queued actions!");
+                }
+            }
+        }
+
+        private static void DisposeActionQueue()
+        {
+            lock (actionQueueLock)
+            {
+                if (actionQueue.IsCreated)
+                {
+                    // Free any remaining GCHandles
+                    while (actionQueue.Count > 0 && actionQueue.TryDequeue(out var ptr))
+                    {
+                        try
+                        {
+                            var handle = GCHandle.FromIntPtr(ptr);
+                            handle.Free();
+                        }
+                        catch
+                        {
+                            // ignore
+                        }
+                    }
+
+                    actionQueue.Dispose();
+                }
             }
         }
 
