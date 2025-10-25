@@ -8,6 +8,13 @@ namespace Utilities.Async.Addressables
 {
     public static class AsyncOperationHandleExtensions
     {
+#if !UNITY_2023_1_OR_NEWER
+
+        public static CoroutineAwaiter<AsyncOperation> GetAwaiter(this AsyncOperation instruction)
+            => new(instruction);
+
+#endif // !UNITY_2023_1_OR_NEWER
+
         public static void TryThrowException<T>(this AsyncOperationHandle<T> handle)
             => TryThrowException((AsyncOperationHandle)handle);
 

@@ -68,7 +68,7 @@ namespace Utilities.Async.Internal
         }
 
         /// <summary>
-        /// This Unity Player's Thread Id.
+        /// This Unity Player's Thread ID.
         /// </summary>
         public static int UnityThreadId { get; private set; }
 

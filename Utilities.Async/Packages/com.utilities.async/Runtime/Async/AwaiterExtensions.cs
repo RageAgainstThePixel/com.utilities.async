@@ -28,8 +28,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Scripting;
-using Utilities.Async.AwaitYieldInstructions;
 using Object = UnityEngine.Object;
+
+#if !UNITY_6000_0_OR_NEWER
+using Utilities.Async.AwaitYieldInstructions;
+#endif
 
 namespace Utilities.Async
 {
@@ -40,10 +43,19 @@ namespace Utilities.Async
     /// </summary>
     public static class AwaiterExtensions
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static async Task AsTask(this Awaitable awaitable)
+            => await awaitable;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static async Task<T> AsTask<T>(this Awaitable<T> awaitable)
+            => await awaitable;
+
         /// <summary>
         /// Runs the <see cref="Task"/> as <see cref="IEnumerator"/>.
         /// </summary>
         /// <param name="task">The <see cref="Task"/> to run.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IEnumerator RunAsIEnumerator(this Task task)
         {
             while (!task.IsCompleted)
@@ -64,6 +76,7 @@ namespace Utilities.Async
         /// Runs the <see cref="Task{T}"/> as <see cref="IEnumerator{T}"/>.
         /// </summary>
         /// <param name="task">The <see cref="Task{T}"/> to run.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IEnumerator<T> RunAsIEnumerator<T>(this Task<T> task)
         {
             while (!task.IsCompleted)
@@ -88,6 +101,7 @@ namespace Utilities.Async
         /// Runs the <see cref="Func{TResult}"/> as <see cref="IEnumerator"/>.
         /// </summary>
         /// <param name="asyncFunc"><see cref="Func{TResult}"/> to run.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IEnumerator RunAsIEnumerator(Func<Task> asyncFunc)
             => asyncFunc.Invoke().RunAsIEnumerator();
 
@@ -96,6 +110,7 @@ namespace Utilities.Async
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="asyncFunc"><see cref="Func{TResult}"/> to run.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static IEnumerator<T> RunAsIEnumerator<T>(Func<Task<T>> asyncFunc)
             => asyncFunc.Invoke().RunAsIEnumerator();
 
@@ -103,6 +118,7 @@ namespace Utilities.Async
         /// Runs the async task synchronously.
         /// </summary>
         /// <param name="asyncFunc"><see cref="Func{TResult}"/> callback.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void RunSynchronously(Func<Task> asyncFunc)
             => asyncFunc.Invoke().Wait();
 
@@ -111,6 +127,7 @@ namespace Utilities.Async
         /// </summary>
         /// <typeparam name="T">Return type.</typeparam>
         /// <param name="asyncFunc"><see cref="Func{TResult}"/> callback.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T RunSynchronously<T>(Func<Task<T>> asyncFunc)
             => asyncFunc.Invoke().Result;
 
@@ -215,10 +232,13 @@ namespace Utilities.Async
             void OnCompleted(AsyncOperation op) => opTcs.SetResult(op);
         }
 
+#if !UNITY_6000_0_OR_NEWER
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CoroutineAwaiter GetAwaiter(this UnityMainThread instruction)
             => new(instruction);
 
 #if UNITY_WEBGL && !UNITY_EDITOR
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CoroutineAwaiter GetAwaiter(this BackgroundThread instruction)
         {
             Debug.LogWarning($"{nameof(BackgroundThread)} not supported for {nameof(RuntimePlatform.WebGLPlayer)}");
@@ -227,49 +247,54 @@ namespace Utilities.Async
 #else
         public static ConfiguredTaskAwaitable.ConfiguredTaskAwaiter GetAwaiter(this BackgroundThread _)
             => BackgroundThread.GetAwaiter();
-#endif
+#endif // UNITY_WEBGL && !UNITY_EDITOR
+#endif // !UNITY_6000_0_OR_NEWER
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CoroutineAwaiter GetAwaiter(this WaitForSeconds instruction)
             => new(instruction);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CoroutineAwaiter GetAwaiter(this WaitForEndOfFrame instruction)
             => new(instruction);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CoroutineAwaiter GetAwaiter(this WaitForFixedUpdate instruction)
             => new(instruction);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CoroutineAwaiter GetAwaiter(this WaitForSecondsRealtime instruction)
             => new(instruction);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CoroutineAwaiter GetAwaiter(this WaitUntil instruction)
             => new(instruction);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CoroutineAwaiter GetAwaiter(this WaitWhile instruction)
             => new(instruction);
 
-#if !UNITY_2023_1_OR_NEWER
-
-        public static CoroutineAwaiter<AsyncOperation> GetAwaiter(this AsyncOperation instruction)
-            => new(instruction);
-
-#endif // !UNITY_2023_1_OR_NEWER
-
-        public static CoroutineAwaiter<Object> GetAwaiter(this ResourceRequest instruction)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static CoroutineAwaiter<T> GetAwaiter<T>(this ResourceRequest instruction)
             => new(instruction);
 
 #if UNITY_ASSET_BUNDLES
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CoroutineAwaiter<AssetBundle> GetAwaiter(this AssetBundleCreateRequest instruction)
             => new(instruction);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CoroutineAwaiter<Object> GetAwaiter(this AssetBundleRequest instruction)
             => new(instruction);
 
 #endif //UNITY_ASSET_BUNDLES
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CoroutineAwaiter<T> GetAwaiter<T>(this IEnumerator<T> coroutine)
             => new(coroutine);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CoroutineAwaiter GetAwaiter(this IEnumerator coroutine)
             => new(coroutine);
 

@@ -6,7 +6,6 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using Utilities.Async.AwaitYieldInstructions;
 using Utilities.Async.Internal;
 using Debug = UnityEngine.Debug;
 
@@ -23,9 +22,8 @@ namespace Utilities.Async.Samples.Demo
 
                 // Make sure we're on the main unity thread
                 await Awaiters.UnityMainThread;
-                Debug.Log($"{nameof(UnityMainThread)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
+                Debug.Log($"{nameof(Awaiters.UnityMainThread)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
 
-                // Wait for one second using built in coroutine yield
                 await new WaitForSeconds(1f);
                 Debug.Log($"{nameof(WaitForSeconds)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
 
@@ -41,7 +39,7 @@ namespace Utilities.Async.Samples.Demo
 
                 // Get back to the main unity thread
                 await Awaiters.UnityMainThread;
-                Debug.Log($"{nameof(UnityMainThread)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
+                Debug.Log($"{nameof(Awaiters.UnityMainThread)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
 
                 // switch to background thread to do a long
                 // running process on background thread
@@ -52,7 +50,7 @@ namespace Utilities.Async.Samples.Demo
                 backgroundInvokedAction.InvokeOnMainThread();
 
                 // should still be on background thread.
-                Debug.Log($"{nameof(BackgroundThread)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
+                Debug.Log($"{nameof(Awaiters.BackgroundThread)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
 
                 // await on IEnumerator functions as well
                 // for backwards compatibility or older code
