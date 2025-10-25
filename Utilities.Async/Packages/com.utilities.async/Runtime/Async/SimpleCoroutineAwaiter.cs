@@ -4,13 +4,13 @@ using JetBrains.Annotations;
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
-using static Utilities.Async.AwaiterExtensions;
 
 namespace Utilities.Async
 {
     /// <summary>
     /// Processes Coroutine and notifies completion.
     /// </summary>
+    [Obsolete("use CoroutineAwaiter")]
     public class SimpleCoroutineAwaiter : ICriticalNotifyCompletion
     {
         private Exception exception;
@@ -46,7 +46,7 @@ namespace Utilities.Async
             // when awaiting on unity yield instructions.
             if (continuation != null)
             {
-                RunOnUnityScheduler(continuation);
+                SyncContextUtility.RunOnUnityThread(continuation);
             }
         }
 
@@ -73,6 +73,7 @@ namespace Utilities.Async
     /// Processes Coroutine and notifies completion with result.
     /// </summary>
     /// <typeparam name="T">The result type.</typeparam>
+    [Obsolete("use CoroutineAwaiter<T>")]
     public class SimpleCoroutineAwaiter<T> : ICriticalNotifyCompletion
     {
         private Exception exception;
@@ -112,7 +113,7 @@ namespace Utilities.Async
             // when awaiting on unity yield instructions.
             if (continuation != null)
             {
-                RunOnUnityScheduler(continuation);
+                SyncContextUtility.RunOnUnityThread(continuation);
             }
         }
 

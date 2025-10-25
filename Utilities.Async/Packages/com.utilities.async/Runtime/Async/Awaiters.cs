@@ -23,7 +23,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Utilities.Async.AwaitYieldInstructions;
 
 namespace Utilities.Async
 {
@@ -32,16 +31,29 @@ namespace Utilities.Async
     /// </summary>
     public static class Awaiters
     {
+#if UNITY_6000_0_OR_NEWER
         /// <summary>
         /// Use this awaiter to continue execution on the main thread.
         /// </summary>
         /// <remarks>Brings the execution back to the main thead on the next engine update.</remarks>
-        public static UnityMainThread UnityMainThread { get; } = new UnityMainThread();
+        public static UnityEngine.MainThreadAwaitable UnityMainThread { get; } = UnityEngine.Awaitable.MainThreadAsync();
 
         /// <summary>
         /// Use this awaiter to continue execution on the background thread.
         /// </summary>
-        public static BackgroundThread BackgroundThread { get; } = new BackgroundThread();
+        public static UnityEngine.BackgroundThreadAwaitable BackgroundThread { get; } = UnityEngine.Awaitable.BackgroundThreadAsync();
+#else
+        /// <summary>
+        /// Use this awaiter to continue execution on the main thread.
+        /// </summary>
+        /// <remarks>Brings the execution back to the main thread on the next engine update.</remarks>
+        public static AwaitYieldInstructions.UnityMainThread UnityMainThread { get; } = new();
+
+        /// <summary>
+        /// Use this awaiter to continue execution on the background thread.
+        /// </summary>
+        public static AwaitYieldInstructions.BackgroundThread BackgroundThread { get; } = new();
+#endif // UNITY_6000_0_OR_NEWER
 
         /// <summary>
         /// Use this awaiter to wait until the condition is met.<para/>
