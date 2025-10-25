@@ -22,7 +22,6 @@
 
 using System;
 using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -30,7 +29,6 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Scripting;
 using Utilities.Async.AwaitYieldInstructions;
-using Utilities.Async.Internal;
 using Object = UnityEngine.Object;
 
 namespace Utilities.Async
@@ -126,7 +124,7 @@ namespace Utilities.Async
         {
             var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            using (cancellationToken.Register(state => ((TaskCompletionSource<object>)state).TrySetResult(null), tcs))
+            await using (cancellationToken.Register(state => ((TaskCompletionSource<object>)state).TrySetResult(null), tcs))
             {
                 var resultTask = await Task.WhenAny(task, tcs.Task).ConfigureAwait(true);
 
@@ -151,7 +149,7 @@ namespace Utilities.Async
         {
             var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            using (cancellationToken.Register(state => ((TaskCompletionSource<object>)state).TrySetResult(null), tcs))
+            await using (cancellationToken.Register(state => ((TaskCompletionSource<object>)state).TrySetResult(null), tcs))
             {
                 var resultTask = await Task.WhenAny(task, tcs.Task).ConfigureAwait(true);
 
@@ -217,94 +215,63 @@ namespace Utilities.Async
             void OnCompleted(AsyncOperation op) => opTcs.SetResult(op);
         }
 
-        public static SimpleCoroutineAwaiter GetAwaiter(this UnityMainThread instruction)
-            => GetAwaiterReturnVoid(instruction);
+        public static CoroutineAwaiter GetAwaiter(this UnityMainThread instruction)
+            => new(instruction);
 
 #if UNITY_WEBGL && !UNITY_EDITOR
-        public static SimpleCoroutineAwaiter GetAwaiter(this BackgroundThread instruction)
+        public static CoroutineAwaiter GetAwaiter(this BackgroundThread instruction)
         {
             Debug.LogWarning($"{nameof(BackgroundThread)} not supported for {nameof(RuntimePlatform.WebGLPlayer)}");
-            return GetAwaiterReturnVoid(instruction);
+            return new CoroutineAwaiter(instruction);
         }
 #else
         public static ConfiguredTaskAwaitable.ConfiguredTaskAwaiter GetAwaiter(this BackgroundThread _)
             => BackgroundThread.GetAwaiter();
 #endif
 
-        public static SimpleCoroutineAwaiter GetAwaiter(this WaitForSeconds instruction)
-            => GetAwaiterReturnVoid(instruction);
+        public static CoroutineAwaiter GetAwaiter(this WaitForSeconds instruction)
+            => new(instruction);
 
-        public static SimpleCoroutineAwaiter GetAwaiter(this WaitForEndOfFrame instruction)
-            => GetAwaiterReturnVoid(instruction);
+        public static CoroutineAwaiter GetAwaiter(this WaitForEndOfFrame instruction)
+            => new(instruction);
 
-        public static SimpleCoroutineAwaiter GetAwaiter(this WaitForFixedUpdate instruction)
-            => GetAwaiterReturnVoid(instruction);
+        public static CoroutineAwaiter GetAwaiter(this WaitForFixedUpdate instruction)
+            => new(instruction);
 
-        public static SimpleCoroutineAwaiter GetAwaiter(this WaitForSecondsRealtime instruction)
-            => GetAwaiterReturnVoid(instruction);
+        public static CoroutineAwaiter GetAwaiter(this WaitForSecondsRealtime instruction)
+            => new(instruction);
 
-        public static SimpleCoroutineAwaiter GetAwaiter(this WaitUntil instruction)
-            => GetAwaiterReturnVoid(instruction);
+        public static CoroutineAwaiter GetAwaiter(this WaitUntil instruction)
+            => new(instruction);
 
-        public static SimpleCoroutineAwaiter GetAwaiter(this WaitWhile instruction)
-            => GetAwaiterReturnVoid(instruction);
+        public static CoroutineAwaiter GetAwaiter(this WaitWhile instruction)
+            => new(instruction);
 
 #if !UNITY_2023_1_OR_NEWER
 
-        public static SimpleCoroutineAwaiter<AsyncOperation> GetAwaiter(this AsyncOperation instruction)
-        {
-            var awaiter = new SimpleCoroutineAwaiter<AsyncOperation>();
-            RunOnUnityScheduler(() => RunCoroutine(ReturnAsyncOperation(awaiter, instruction)));
-            return awaiter;
-        }
+        public static CoroutineAwaiter<AsyncOperation> GetAwaiter(this AsyncOperation instruction)
+            => new(instruction);
 
 #endif // !UNITY_2023_1_OR_NEWER
 
-        public static SimpleCoroutineAwaiter<Object> GetAwaiter(this ResourceRequest instruction)
-        {
-            var awaiter = new SimpleCoroutineAwaiter<Object>();
-            RunOnUnityScheduler(() => RunCoroutine(ResourceRequest(awaiter, instruction)));
-            return awaiter;
-        }
+        public static CoroutineAwaiter<Object> GetAwaiter(this ResourceRequest instruction)
+            => new(instruction);
 
 #if UNITY_ASSET_BUNDLES
 
-        public static SimpleCoroutineAwaiter<AssetBundle> GetAwaiter(this AssetBundleCreateRequest instruction)
-        {
-            var awaiter = new SimpleCoroutineAwaiter<AssetBundle>();
-            RunOnUnityScheduler(() => RunCoroutine(AssetBundleCreateRequest(awaiter, instruction)));
-            return awaiter;
-        }
+        public static CoroutineAwaiter<AssetBundle> GetAwaiter(this AssetBundleCreateRequest instruction)
+            => new(instruction);
 
-        public static SimpleCoroutineAwaiter<Object> GetAwaiter(this AssetBundleRequest instruction)
-        {
-            var awaiter = new SimpleCoroutineAwaiter<Object>();
-            RunOnUnityScheduler(() => RunCoroutine(AssetBundleRequest(awaiter, instruction)));
-            return awaiter;
-        }
+        public static CoroutineAwaiter<Object> GetAwaiter(this AssetBundleRequest instruction)
+            => new(instruction);
 
 #endif //UNITY_ASSET_BUNDLES
 
-        public static SimpleCoroutineAwaiter<T> GetAwaiter<T>(this IEnumerator<T> coroutine)
-        {
-            var awaiter = new SimpleCoroutineAwaiter<T>();
-            RunOnUnityScheduler(() => RunCoroutine(new CoroutineWrapper<T>(coroutine, awaiter).Run()));
-            return awaiter;
-        }
+        public static CoroutineAwaiter<T> GetAwaiter<T>(this IEnumerator<T> coroutine)
+            => new(coroutine);
 
-        public static SimpleCoroutineAwaiter<object> GetAwaiter(this IEnumerator coroutine)
-        {
-            var awaiter = new SimpleCoroutineAwaiter<object>();
-            RunOnUnityScheduler(() => RunCoroutine(new CoroutineWrapper<object>(coroutine, awaiter).Run()));
-            return awaiter;
-        }
-
-        internal static SimpleCoroutineAwaiter GetAwaiterReturnVoid(object instruction)
-        {
-            var awaiter = new SimpleCoroutineAwaiter();
-            RunOnUnityScheduler(() => RunCoroutine(ReturnVoid(awaiter, instruction)));
-            return awaiter;
-        }
+        public static CoroutineAwaiter GetAwaiter(this IEnumerator coroutine)
+            => new(coroutine);
 
         [Preserve]
         internal static void RunCoroutine(IEnumerator enumerator)
@@ -339,45 +306,6 @@ namespace Utilities.Async
 
         [Preserve]
         private static MonoBehaviour coroutineRunner;
-
-        private static readonly ConcurrentQueue<Action> actionQueue = new ConcurrentQueue<Action>();
-
-        [Preserve]
-        internal static void RunOnUnityScheduler(Action action)
-        {
-            if (SyncContextUtility.IsMainThread)
-            {
-                action();
-            }
-            else
-            {
-                actionQueue.Enqueue(action);
-                SyncContextUtility.UnitySynchronizationContext.Post(DeferredPostCallback, null);
-            }
-        }
-
-        private static void DeferredPostCallback(object state)
-        {
-            if (!SyncContextUtility.IsMainThread)
-            {
-                Debug.LogError("Failed to post deferred execution back on main thread!");
-                return;
-            }
-
-            while (actionQueue.Count > 0)
-            {
-                if (actionQueue.TryPeek(out _) &&
-                    actionQueue.TryDequeue(out var action))
-                {
-                    action?.Invoke();
-                }
-            }
-
-            if (actionQueue.Count > 0)
-            {
-                Debug.LogError("Failed to execute all queued actions!");
-            }
-        }
 
         [Preserve]
         private class CoroutineRunner : MonoBehaviour
@@ -428,43 +356,5 @@ namespace Utilities.Async
             }
 #endif // UNITY_WEBGL
         }
-
-        private static IEnumerator ReturnVoid(SimpleCoroutineAwaiter awaiter, object instruction)
-        {
-            // For simple instructions we assume that they don't throw exceptions
-            yield return instruction;
-            awaiter.Complete();
-        }
-
-        private static IEnumerator ResourceRequest(SimpleCoroutineAwaiter<Object> awaiter, ResourceRequest instruction)
-        {
-            yield return instruction;
-            awaiter.Complete(instruction.asset);
-        }
-
-#if !UNITY_2023_1_OR_NEWER
-
-        private static IEnumerator ReturnAsyncOperation(SimpleCoroutineAwaiter<AsyncOperation> awaiter, AsyncOperation instruction)
-        {
-            yield return instruction;
-            awaiter.Complete(instruction);
-        }
-
-#endif // !UNITY_2023_1_OR_NEWER
-#if UNITY_ASSET_BUNDLES
-
-        private static IEnumerator AssetBundleCreateRequest(SimpleCoroutineAwaiter<AssetBundle> awaiter, AssetBundleCreateRequest instruction)
-        {
-            yield return instruction;
-            awaiter.Complete(instruction.assetBundle);
-        }
-
-        private static IEnumerator AssetBundleRequest(SimpleCoroutineAwaiter<Object> awaiter, AssetBundleRequest instruction)
-        {
-            yield return instruction;
-            awaiter.Complete(instruction.asset);
-        }
-
-#endif // UNITY_ASSET_BUNDLES
     }
 }

@@ -4,7 +4,6 @@ using NUnit.Framework;
 using System;
 using System.Collections;
 using System.Diagnostics;
-using System.Threading;
 using System.Threading.Tasks;
 using Unity.EditorCoroutines.Editor;
 using UnityEngine.TestTools;

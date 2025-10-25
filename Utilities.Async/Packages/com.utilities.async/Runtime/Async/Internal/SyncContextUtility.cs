@@ -20,8 +20,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System;
 using System.Threading;
 using UnityEngine;
+using UnityEngine.Scripting;
 
 namespace Utilities.Async.Internal
 {
@@ -79,5 +81,26 @@ namespace Utilities.Async.Internal
         /// Is this being called from the main thread?
         /// </summary>
         public static bool IsMainThread => UnitySynchronizationContext == SynchronizationContext.Current;
+
+        private static SendOrPostCallback postCallback = state =>
+        {
+            if (IsMainThread && state is Action action)
+            {
+                action.Invoke();
+            }
+        };
+
+        [Preserve]
+        public static void RunOnUnityThread(Action action)
+        {
+            if (IsMainThread)
+            {
+                action?.Invoke();
+            }
+            else
+            {
+                UnitySynchronizationContext.Post(postCallback, action);
+            }
+        }
     }
 }

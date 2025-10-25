@@ -1,6 +1,7 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using System;
+using Utilities.Async.Internal;
 
 namespace Utilities.Async
 {
@@ -11,6 +12,6 @@ namespace Utilities.Async
         /// </summary>
         /// <param name="action">The action to invoke.</param>
         public static void InvokeOnMainThread(this Action action)
-            => AwaiterExtensions.RunOnUnityScheduler(action);
+            => SyncContextUtility.RunOnUnityThread(action);
     }
 }
