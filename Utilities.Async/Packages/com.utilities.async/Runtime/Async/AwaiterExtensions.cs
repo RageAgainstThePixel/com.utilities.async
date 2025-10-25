@@ -296,7 +296,7 @@ namespace Utilities.Async
             => new CoroutineAwaiter(coroutine);
 
         internal static CoroutineAwaiter GetAwaiterReturnVoid(object instruction)
-            => new CoroutineAwaiter(Void(instruction));
+            => new CoroutineAwaiter(instruction);
 
         [Preserve]
         internal static object RunCoroutine(IEnumerator enumerator)
@@ -425,11 +425,6 @@ namespace Utilities.Async
                 }
             }
 #endif // UNITY_WEBGL
-        }
-
-        private static IEnumerator Void(object instruction)
-        {
-            yield return instruction;
         }
 
         private static IEnumerator ResourceRequest(SimpleCoroutineAwaiter<Object> awaiter, ResourceRequest instruction)

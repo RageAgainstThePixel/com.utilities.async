@@ -3,6 +3,7 @@
 using JetBrains.Annotations;
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Threading;
@@ -78,10 +79,11 @@ namespace Utilities.Async
 
     public readonly struct CoroutineAwaiter : ICriticalNotifyCompletion
     {
-        private static readonly SendOrPostCallback postCallback = state => ((Action)state)();
-        private readonly IEnumerator coroutine;
+        private static readonly SendOrPostCallback postCallback = state => ((ContinuationWork)state).Invoke();
 
-        public CoroutineAwaiter(IEnumerator coroutine)
+        private readonly object coroutine;
+
+        public CoroutineAwaiter(object coroutine)
             => this.coroutine = coroutine;
 
         public void OnCompleted(Action continuation)
@@ -95,8 +97,7 @@ namespace Utilities.Async
             }
             else
             {
-                var awaiter = this;
-                AwaiterExtensions.Queue(() => AwaiterExtensions.RunCoroutine(awaiter.Run(continuation)));
+                SyncContextUtility.UnitySynchronizationContext.Post(postCallback, ContinuationWork.Rent(this, continuation));
             }
         }
 
@@ -109,5 +110,39 @@ namespace Utilities.Async
         public bool IsCompleted => false;
 
         public void GetResult() { }
+
+        private sealed class ContinuationWork
+        {
+            private static readonly ConcurrentQueue<ContinuationWork> pool = new();
+            private Action continuation;
+            private CoroutineAwaiter awaiter;
+
+            private ContinuationWork() { }
+
+            public static ContinuationWork Rent(CoroutineAwaiter awaiter, Action continuation)
+            {
+                if (!pool.TryDequeue(out var work))
+                {
+                    work = new ContinuationWork();
+                }
+
+                work.awaiter = awaiter;
+                work.continuation = continuation;
+                return work;
+            }
+
+            private static void Return(ContinuationWork work)
+            {
+                work.awaiter = default;
+                work.continuation = null;
+                pool.Enqueue(work);
+            }
+
+            public void Invoke()
+            {
+                AwaiterExtensions.RunCoroutine(awaiter.Run(continuation));
+                Return(this);
+            }
+        }
     }
 }
