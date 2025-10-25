@@ -46,7 +46,7 @@ namespace Utilities.Async
         /// <summary>
         /// Use this awaiter to continue execution on the main thread.
         /// </summary>
-        /// <remarks>Brings the execution back to the main thead on the next engine update.</remarks>
+        /// <remarks>Brings the execution back to the main thread on the next engine update.</remarks>
         public static AwaitYieldInstructions.UnityMainThread UnityMainThread { get; } = new();
 
         /// <summary>

@@ -6,7 +6,6 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using Utilities.Async.Internal;
 using Debug = UnityEngine.Debug;
 
 namespace Utilities.Async.Samples.Demo

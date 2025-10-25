@@ -27,7 +27,6 @@ using UnityEngine;
 
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using Utilities.Async.Internal;
 
 #endif
 

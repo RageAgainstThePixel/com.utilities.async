@@ -5,7 +5,6 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using UnityEngine;
-using Utilities.Async.Internal;
 
 #if UNITY_ADDRESSABLES
 using UnityEngine.ResourceManagement.AsyncOperations;

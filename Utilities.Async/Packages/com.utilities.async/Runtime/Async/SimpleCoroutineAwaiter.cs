@@ -4,7 +4,6 @@ using JetBrains.Annotations;
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
-using Utilities.Async.Internal;
 
 namespace Utilities.Async
 {

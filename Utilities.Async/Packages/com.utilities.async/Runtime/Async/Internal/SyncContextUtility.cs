@@ -25,7 +25,7 @@ using System.Threading;
 using UnityEngine;
 using UnityEngine.Scripting;
 
-namespace Utilities.Async.Internal
+namespace Utilities.Async
 {
     /// <summary>
     /// Utility class to assist in thread and context synchronization.

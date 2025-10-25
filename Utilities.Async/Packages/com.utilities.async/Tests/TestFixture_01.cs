@@ -7,7 +7,6 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Unity.EditorCoroutines.Editor;
 using UnityEngine.TestTools;
-using Utilities.Async.Internal;
 using Debug = UnityEngine.Debug;
 
 namespace Utilities.Async.Tests
