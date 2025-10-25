@@ -43,6 +43,7 @@ namespace Utilities.Async
     /// </summary>
     public static class AwaiterExtensions
     {
+#if UNITY_6000_0_OR_NEWER
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static async Task AsTask(this Awaitable awaitable)
             => await awaitable;
@@ -50,6 +51,7 @@ namespace Utilities.Async
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static async Task<T> AsTask<T>(this Awaitable<T> awaitable)
             => await awaitable;
+#endif // UNITY_6000_0_OR_NEWER
 
         /// <summary>
         /// Runs the <see cref="Task"/> as <see cref="IEnumerator"/>.
@@ -278,6 +280,12 @@ namespace Utilities.Async
         public static CoroutineAwaiter<T> GetAwaiter<T>(this ResourceRequest instruction)
             => new(instruction);
 
+#if !UNITY_2023_1_OR_NEWER
+
+        public static CoroutineAwaiter<AsyncOperation> GetAwaiter(this AsyncOperation instruction)
+            => new(instruction);
+
+#endif // !UNITY_2023_1_OR_NEWER
 #if UNITY_ASSET_BUNDLES
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

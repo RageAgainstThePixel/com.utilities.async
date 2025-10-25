@@ -82,13 +82,15 @@ namespace Utilities.Async.Internal
         /// </summary>
         public static bool IsMainThread => UnitySynchronizationContext == SynchronizationContext.Current;
 
-        private static SendOrPostCallback postCallback = state =>
+        private static SendOrPostCallback postCallback = SendOrPostCallback;
+
+        private static void SendOrPostCallback(object state)
         {
             if (IsMainThread && state is Action action)
             {
                 action.Invoke();
             }
-        };
+        }
 
         [Preserve]
         public static void RunOnUnityThread(Action action)
