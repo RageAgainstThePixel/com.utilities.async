@@ -25,10 +25,8 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Scripting;
 using Utilities.Async.AwaitYieldInstructions;
@@ -128,7 +126,7 @@ namespace Utilities.Async
         {
             var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            using (cancellationToken.Register(state => ((TaskCompletionSource<object>)state).TrySetResult(null), tcs))
+            await using (cancellationToken.Register(state => ((TaskCompletionSource<object>)state).TrySetResult(null), tcs))
             {
                 var resultTask = await Task.WhenAny(task, tcs.Task).ConfigureAwait(true);
 
@@ -153,7 +151,7 @@ namespace Utilities.Async
         {
             var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            using (cancellationToken.Register(state => ((TaskCompletionSource<object>)state).TrySetResult(null), tcs))
+            await using (cancellationToken.Register(state => ((TaskCompletionSource<object>)state).TrySetResult(null), tcs))
             {
                 var resultTask = await Task.WhenAny(task, tcs.Task).ConfigureAwait(true);
 
@@ -219,7 +217,7 @@ namespace Utilities.Async
             void OnCompleted(AsyncOperation op) => opTcs.SetResult(op);
         }
 
-        public static SimpleCoroutineAwaiter GetAwaiter(this UnityMainThread instruction)
+        public static CoroutineAwaiter GetAwaiter(this UnityMainThread instruction)
             => GetAwaiterReturnVoid(instruction);
 
 #if UNITY_WEBGL && !UNITY_EDITOR
@@ -233,22 +231,22 @@ namespace Utilities.Async
             => BackgroundThread.GetAwaiter();
 #endif
 
-        public static SimpleCoroutineAwaiter GetAwaiter(this WaitForSeconds instruction)
+        public static CoroutineAwaiter GetAwaiter(this WaitForSeconds instruction)
             => GetAwaiterReturnVoid(instruction);
 
-        public static SimpleCoroutineAwaiter GetAwaiter(this WaitForEndOfFrame instruction)
+        public static CoroutineAwaiter GetAwaiter(this WaitForEndOfFrame instruction)
             => GetAwaiterReturnVoid(instruction);
 
-        public static SimpleCoroutineAwaiter GetAwaiter(this WaitForFixedUpdate instruction)
+        public static CoroutineAwaiter GetAwaiter(this WaitForFixedUpdate instruction)
             => GetAwaiterReturnVoid(instruction);
 
-        public static SimpleCoroutineAwaiter GetAwaiter(this WaitForSecondsRealtime instruction)
+        public static CoroutineAwaiter GetAwaiter(this WaitForSecondsRealtime instruction)
             => GetAwaiterReturnVoid(instruction);
 
-        public static SimpleCoroutineAwaiter GetAwaiter(this WaitUntil instruction)
+        public static CoroutineAwaiter GetAwaiter(this WaitUntil instruction)
             => GetAwaiterReturnVoid(instruction);
 
-        public static SimpleCoroutineAwaiter GetAwaiter(this WaitWhile instruction)
+        public static CoroutineAwaiter GetAwaiter(this WaitWhile instruction)
             => GetAwaiterReturnVoid(instruction);
 
 #if !UNITY_2023_1_OR_NEWER
@@ -294,22 +292,14 @@ namespace Utilities.Async
             return awaiter;
         }
 
-        public static SimpleCoroutineAwaiter<object> GetAwaiter(this IEnumerator coroutine)
-        {
-            var awaiter = new SimpleCoroutineAwaiter<object>();
-            RunOnUnityScheduler(() => RunCoroutine(new CoroutineWrapper<object>(coroutine, awaiter).Run()));
-            return awaiter;
-        }
+        public static CoroutineAwaiter GetAwaiter(this IEnumerator coroutine)
+            => new CoroutineAwaiter(coroutine);
 
-        internal static SimpleCoroutineAwaiter GetAwaiterReturnVoid(object instruction)
-        {
-            var awaiter = new SimpleCoroutineAwaiter();
-            RunOnUnityScheduler(() => RunCoroutine(ReturnVoid(awaiter, instruction)));
-            return awaiter;
-        }
+        internal static CoroutineAwaiter GetAwaiterReturnVoid(object instruction)
+            => new CoroutineAwaiter(Void(instruction));
 
         [Preserve]
-        internal static void RunCoroutine(IEnumerator enumerator)
+        internal static object RunCoroutine(IEnumerator enumerator)
         {
             if (Application.isPlaying)
             {
@@ -327,12 +317,12 @@ namespace Utilities.Async
                     coroutineRunner = go.TryGetComponent<CoroutineRunner>(out var runner) ? runner : go.AddComponent<CoroutineRunner>();
                 }
 
-                coroutineRunner.StartCoroutine(enumerator);
+                return coroutineRunner.StartCoroutine(enumerator);
             }
             else
             {
 #if UNITY_EDITOR
-                Unity.EditorCoroutines.Editor.EditorCoroutineUtility.StartCoroutineOwnerless(enumerator);
+                return Unity.EditorCoroutines.Editor.EditorCoroutineUtility.StartCoroutineOwnerless(enumerator);
 #else
                 throw new Exception(nameof(CoroutineRunner));
 #endif
@@ -342,20 +332,7 @@ namespace Utilities.Async
         [Preserve]
         private static MonoBehaviour coroutineRunner;
 
-        // We store delegates as GCHandle pointers (IntPtr) inside a NativeQueue<IntPtr>.
-        // Native containers only accept unmanaged/blittable types, so we use IntPtr
-        // and reconstruct the GCHandle on the main thread when dequeuing.
-        private static NativeQueue<IntPtr> actionQueue;
-        private static readonly object actionQueueLock = new object();
-
-        static AwaiterExtensions()
-        {
-            actionQueue = new NativeQueue<IntPtr>(Allocator.Persistent);
-            // Ensure we dispose the native queue and free any remaining GCHandles on shutdown
-            Application.quitting += DisposeActionQueue;
-            AppDomain.CurrentDomain.DomainUnload += (_, _) => DisposeActionQueue();
-            AppDomain.CurrentDomain.ProcessExit += (_, _) => DisposeActionQueue();
-        }
+        private static readonly ConcurrentQueue<Action> actionQueue = new();
 
         [Preserve]
         internal static void RunOnUnityScheduler(Action action)
@@ -366,17 +343,15 @@ namespace Utilities.Async
             }
             else
             {
-                // Allocate a GCHandle for the delegate so we can pass an IntPtr into the native queue.
-                var handle = GCHandle.Alloc(action);
-                var ptr = GCHandle.ToIntPtr(handle);
-
-                lock (actionQueueLock)
-                {
-                    actionQueue.Enqueue(ptr);
-                }
-
-                SyncContextUtility.UnitySynchronizationContext.Post(DeferredPostCallback, null);
+                Queue(action);
             }
+        }
+
+        [Preserve]
+        internal static void Queue(Action action)
+        {
+            actionQueue.Enqueue(action);
+            SyncContextUtility.UnitySynchronizationContext.Post(DeferredPostCallback, null);
         }
 
         private static void DeferredPostCallback(object state)
@@ -387,68 +362,18 @@ namespace Utilities.Async
                 return;
             }
 
-            while (true)
+            while (actionQueue.Count > 0)
             {
-                IntPtr ptr = IntPtr.Zero;
-                bool dequeued = false;
-
-                lock (actionQueueLock)
+                if (actionQueue.TryPeek(out _) &&
+                    actionQueue.TryDequeue(out var action))
                 {
-                    if (actionQueue.Count > 0)
-                    {
-                        dequeued = actionQueue.TryDequeue(out ptr);
-                    }
-                }
-
-                if (!dequeued)
-                {
-                    break;
-                }
-
-                try
-                {
-                    var handle = GCHandle.FromIntPtr(ptr);
-                    var action = handle.Target as Action;
-                    handle.Free();
                     action?.Invoke();
                 }
-                catch (Exception ex)
-                {
-                    Debug.LogException(ex);
-                }
             }
 
-            lock (actionQueueLock)
+            if (actionQueue.Count > 0)
             {
-                if (actionQueue.Count > 0)
-                {
-                    Debug.LogError("Failed to execute all queued actions!");
-                }
-            }
-        }
-
-        private static void DisposeActionQueue()
-        {
-            lock (actionQueueLock)
-            {
-                if (actionQueue.IsCreated)
-                {
-                    // Free any remaining GCHandles
-                    while (actionQueue.Count > 0 && actionQueue.TryDequeue(out var ptr))
-                    {
-                        try
-                        {
-                            var handle = GCHandle.FromIntPtr(ptr);
-                            handle.Free();
-                        }
-                        catch
-                        {
-                            // ignore
-                        }
-                    }
-
-                    actionQueue.Dispose();
-                }
+                Debug.LogError("Failed to execute all queued actions!");
             }
         }
 
@@ -502,11 +427,9 @@ namespace Utilities.Async
 #endif // UNITY_WEBGL
         }
 
-        private static IEnumerator ReturnVoid(SimpleCoroutineAwaiter awaiter, object instruction)
+        private static IEnumerator Void(object instruction)
         {
-            // For simple instructions we assume that they don't throw exceptions
             yield return instruction;
-            awaiter.Complete();
         }
 
         private static IEnumerator ResourceRequest(SimpleCoroutineAwaiter<Object> awaiter, ResourceRequest instruction)

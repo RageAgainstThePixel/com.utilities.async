@@ -15,10 +15,10 @@
   "author": "Stephen Hodgson",
   "url": "https://github.com/StephenHodgson",
   "dependencies": {
+    "com.unity.collections": "1.2.4",
     "com.unity.editorcoroutines": "1.0.0",
     "com.unity.test-framework": "1.4.2",
-    "com.unity.nuget.mono-cecil": "1.11.5",
-    "com.unity.collections": "1.2.4"
+    "com.unity.nuget.mono-cecil": "1.11.5"
   },
   "samples": [
     {
