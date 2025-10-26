@@ -4,6 +4,7 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 #if UNITY_ADDRESSABLES
@@ -16,18 +17,20 @@ namespace Utilities.Async
     internal class CoroutineWork
     {
         private static readonly ConcurrentQueue<CoroutineWork> pool = new();
+        private readonly InstructionWrapper instructionWrapper = new();
 
         private CoroutineWork() { }
 
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CoroutineWork Rent(CoroutineAwaiter awaiter, object instruction)
         {
             if (!pool.TryDequeue(out var work))
             {
                 work = new CoroutineWork();
-                SyncContextUtility.RunOnUnityThread(() => AwaiterExtensions.RunCoroutine(work.Run()));
+                void StartWorkCoroutineRunner() => AwaiterExtensions.RunCoroutine(work.Run());
+                SyncContextUtility.RunOnUnityThread(StartWorkCoroutineRunner);
             }
-
-            work.IsCompleted = false;
 
             if (instruction is IEnumerator enumerator)
             {
@@ -35,11 +38,11 @@ namespace Utilities.Async
             }
             else
             {
-                work.processStack.Push(ReturnVoid(instruction));
+                work.instructionWrapper.Initialize(instruction);
+                work.processStack.Push(work.instructionWrapper);
             }
 
             work.Awaiter = awaiter;
-            work.Exception = null;
             return work;
         }
 
@@ -48,12 +51,15 @@ namespace Utilities.Async
             yield return instruction;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Return(CoroutineWork work)
         {
             work.Awaiter = null;
-            work.Exception = null;
             work.IsCompleted = false;
+            work.Exception = null;
+            work.Continuation = null;
             work.processStack.Clear();
+            work.instructionWrapper.Clear();
             pool.Enqueue(work);
         }
 
@@ -64,6 +70,8 @@ namespace Utilities.Async
         public CoroutineAwaiter? Awaiter { get; private set; }
 
         public bool IsCompleted { get; private set; }
+
+        public Action Continuation { get; set; }
 
         private IEnumerator Run()
         {
@@ -103,7 +111,7 @@ namespace Utilities.Async
                     // that the IEnumerators are associated with, so we can at least try
                     // adding that to the exception output
                     Exception = processStack.GenerateExceptionTrace(e);
-                    IsCompleted = true;
+                    CompleteWork();
                     continue;
                 }
 
@@ -113,12 +121,12 @@ namespace Utilities.Async
 
                     if (processStack.Count == 0)
                     {
-                        IsCompleted = true;
+                        CompleteWork();
                         continue;
                     }
                 }
 
-                // We could just yield return nested IEnumerator's here but we choose to do
+                // We could just yield return nested IEnumerator's here, but we choose to do
                 // our own handling here so that we can catch exceptions in nested coroutines
                 // instead of just top level coroutine
                 if (topWorker.Current is IEnumerator item)
@@ -132,14 +140,28 @@ namespace Utilities.Async
                     yield return topWorker.Current;
                 }
             }
-
             // ReSharper disable once IteratorNeverReturns
+        }
+
+        private void CompleteWork()
+        {
+            IsCompleted = true;
+
+            try
+            {
+                Continuation?.Invoke();
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
         }
     }
 
     internal sealed class CoroutineWork<T>
     {
         private static readonly ConcurrentQueue<CoroutineWork<T>> pool = new();
+        private readonly InstructionWrapper instructionWrapper = new();
 
         private CoroutineWork() { }
 
@@ -148,7 +170,8 @@ namespace Utilities.Async
             if (!pool.TryDequeue(out var work))
             {
                 work = new CoroutineWork<T>();
-                SyncContextUtility.RunOnUnityThread(() => AwaiterExtensions.RunCoroutine(work.Run()));
+                void StartWorkCoroutineRunner() => AwaiterExtensions.RunCoroutine(work.Run());
+                SyncContextUtility.RunOnUnityThread(StartWorkCoroutineRunner);
             }
 
             work.Result = default;
@@ -161,8 +184,8 @@ namespace Utilities.Async
             }
             else
             {
-                work.instruction = instruction;
-                work.processStack.Push(ReturnResult(instruction));
+                work.instructionWrapper.Initialize(instruction);
+                work.processStack.Push(work.instructionWrapper);
             }
 
             work.Awaiter = awaiter;
@@ -182,6 +205,7 @@ namespace Utilities.Async
             work.instruction = default;
             work.IsCompleted = false;
             work.processStack.Clear();
+            work.instructionWrapper.Clear();
             pool.Enqueue(work);
         }
 
@@ -194,6 +218,8 @@ namespace Utilities.Async
         public CoroutineAwaiter<T>? Awaiter { get; private set; }
 
         public bool IsCompleted { get; private set; }
+
+        public Action Continuation { get; set; }
 
         public object Result { get; private set; }
 
@@ -268,7 +294,7 @@ namespace Utilities.Async
                     // that the IEnumerators are associated with, so we can at least try
                     // adding that to the exception output
                     Exception = processStack.GenerateExceptionTrace(e);
-                    IsCompleted = true;
+                    CompleteWork();
                     continue;
                 }
 
@@ -308,7 +334,7 @@ namespace Utilities.Async
                             Debug.LogException(e);
                         }
 
-                        IsCompleted = true;
+                        CompleteWork();
                         continue;
                     }
                 }
@@ -327,8 +353,21 @@ namespace Utilities.Async
                     yield return topWorker.Current;
                 }
             }
-
             // ReSharper disable once IteratorNeverReturns
+        }
+
+        private void CompleteWork()
+        {
+            IsCompleted = true;
+
+            try
+            {
+                Continuation?.Invoke();
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
         }
     }
 }

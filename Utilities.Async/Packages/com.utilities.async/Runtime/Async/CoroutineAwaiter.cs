@@ -20,7 +20,7 @@ namespace Utilities.Async
             => UnsafeOnCompleted(continuation);
 
         public void UnsafeOnCompleted(Action continuation)
-            => SyncContextUtility.RunOnUnityThread(continuation);
+            => work.Continuation = continuation;
 
         [UsedImplicitly]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -53,7 +53,7 @@ namespace Utilities.Async
             => UnsafeOnCompleted(continuation);
 
         public void UnsafeOnCompleted(Action continuation)
-            => SyncContextUtility.RunOnUnityThread(continuation);
+            => work.Continuation = continuation;
 
         [UsedImplicitly]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
