@@ -11,10 +11,23 @@ namespace Utilities.Async
     {
         private static readonly ConcurrentQueue<YieldInstructionWork<T>> pool = new();
 
-        private Action continuation;
-        private YieldInstructionWrapper instructionWrapper = new();
+        private readonly Action runner;
 
-        private YieldInstructionWork() { }
+        private YieldInstructionWrapper<T> instructionWrapper;
+
+        private Action continuation;
+
+        public bool IsCompleted { get; private set; }
+
+        public object Result { get; private set; }
+
+        public Exception Exception { get; private set; }
+
+        private YieldInstructionWork()
+        {
+            instructionWrapper = new YieldInstructionWrapper<T>(this);
+            runner = () => AwaiterExtensions.RunCoroutine(instructionWrapper);
+        }
 
         public static YieldInstructionWork<T> Rent(object instruction)
         {
@@ -29,31 +42,8 @@ namespace Utilities.Async
             }
 
             work.Exception = null;
-
-            switch (instruction)
-            {
-#if UNITY_ASSET_BUNDLES
-                case AssetBundleRequest assetBundleRequest:
-                    work.instructionWrapper.Initialize(work.AssetBundleRequest(assetBundleRequest));
-                    break;
-                case AssetBundleCreateRequest assetBundleCreateRequest:
-                    work.instructionWrapper.Initialize(work.AssetBundleCreateRequest(assetBundleCreateRequest));
-                    break;
-#endif
-                case ResourceRequest resourceRequest:
-                    work.instructionWrapper.Initialize(work.ResourceRequest(resourceRequest));
-                    break;
-#if !UNITY_2023_1_OR_NEWER
-                case AsyncOperation asyncOperation:
-                    work.instructionWrapper.Initialize(work.ReturnAsyncOperation(asyncOperation));
-                    break;
-#endif
-                default:
-                    work.instructionWrapper.Initialize(work.ReturnVoid(instruction));
-                    break;
-            }
-
-            SyncContextUtility.RunOnUnityThread(work.StartWorkCoroutineRunner);
+            work.instructionWrapper.Initialize(instruction);
+            SyncContextUtility.RunOnUnityThread(work.runner);
             return work;
         }
 
@@ -66,58 +56,10 @@ namespace Utilities.Async
             pool.Enqueue(work);
         }
 
-        private void StartWorkCoroutineRunner()
-            => AwaiterExtensions.RunCoroutine(instructionWrapper);
-
-#if UNITY_ASSET_BUNDLES
-
-        private IEnumerator AssetBundleRequest(AssetBundleRequest instruction)
-        {
-            yield return instruction;
-            CompleteWork(instruction.asset);
-        }
-
-        private IEnumerator AssetBundleCreateRequest(AssetBundleCreateRequest instruction)
-        {
-            yield return instruction;
-            CompleteWork(instruction.assetBundle);
-        }
-
-#endif // UNITY_ASSET_BUNDLES
-
-        private IEnumerator ResourceRequest(ResourceRequest instruction)
-        {
-            yield return instruction;
-            CompleteWork(instruction.asset);
-        }
-
-#if !UNITY_2023_1_OR_NEWER
-
-        private IEnumerator ReturnAsyncOperation(AsyncOperation instruction)
-        {
-            yield return instruction;
-            CompleteWork(instruction);
-        }
-
-#endif // !UNITY_2023_1_OR_NEWER
-
-        private IEnumerator ReturnVoid(object instruction)
-        {
-            yield return instruction;
-            CompleteWork(instruction);
-        }
-
-        public bool IsCompleted { get; private set; }
-
-        public object Result { get; private set; }
-
-        public Exception Exception { get; private set; }
-
-
         public void RegisterContinuation(Action action)
             => continuation = action;
 
-        private void CompleteWork(object result)
+        public void CompleteWork(object result)
         {
             IsCompleted = true;
             Result = result;
@@ -125,10 +67,14 @@ namespace Utilities.Async
         }
     }
 
-    internal sealed class YieldInstructionWrapper : IEnumerator
+    internal sealed class YieldInstructionWrapper<T> : IEnumerator
     {
         private int state;
         private object instruction;
+        private YieldInstructionWork<T> work;
+
+        public YieldInstructionWrapper(YieldInstructionWork<T> owner)
+            => work = owner;
 
         public object Current => state == 1 ? instruction : null;
 
@@ -141,6 +87,7 @@ namespace Utilities.Async
                     return true;
                 case 1:
                     state = 2;
+                    InstructionComplete();
                     instruction = null;
                     return false;
                 default:
@@ -155,6 +102,32 @@ namespace Utilities.Async
         {
             instruction = value;
             state = 0;
+        }
+
+        private void InstructionComplete()
+        {
+            switch (instruction)
+            {
+#if UNITY_ASSET_BUNDLES
+                case AssetBundleRequest assetBundleRequest:
+                    work.CompleteWork(assetBundleRequest.asset);
+                    break;
+                case AssetBundleCreateRequest assetBundleCreateRequest:
+                    work.CompleteWork(assetBundleCreateRequest.assetBundle);
+                    break;
+#endif
+                case ResourceRequest resourceRequest:
+                    work.CompleteWork(resourceRequest.asset);
+                    break;
+#if !UNITY_2023_1_OR_NEWER
+                case AsyncOperation asyncOperation:
+                    work.CompleteWork(asyncOperation);
+                    break;
+#endif
+                default:
+                    work.CompleteWork(instruction);
+                    break;
+            }
         }
 
         public void Clear()
