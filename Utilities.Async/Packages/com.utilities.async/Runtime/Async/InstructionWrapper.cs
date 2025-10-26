@@ -7,8 +7,8 @@ namespace Utilities.Async
 {
     internal sealed class InstructionWrapper : IEnumerator
     {
-        private object instruction = default;
         private int state;
+        private object instruction;
 
         public object Current => state == 1 ? instruction : null;
 
