@@ -46,11 +46,6 @@ namespace Utilities.Async
             return work;
         }
 
-        private static IEnumerator ReturnVoid(object instruction)
-        {
-            yield return instruction;
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Return(CoroutineWork work)
         {
