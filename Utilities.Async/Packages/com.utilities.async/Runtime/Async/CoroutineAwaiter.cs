@@ -8,12 +8,12 @@ namespace Utilities.Async
 {
     public readonly struct CoroutineAwaiter : ICriticalNotifyCompletion, IAwaiter
     {
-        private readonly CoroutineWork work;
+        private readonly CoroutineWork<object> work;
 
         public CoroutineAwaiter(object instruction) : this()
-            => work = CoroutineWork.Rent(instruction);
+            => work = CoroutineWork<object>.Rent(instruction);
 
-        private CoroutineWork Work => work ?? throw new InvalidOperationException("CoroutineAwaiter is not initialized.");
+        private CoroutineWork<object> Work => work ?? throw new InvalidOperationException("CoroutineAwaiter is not initialized.");
 
         public bool IsCompleted => Work.Task.IsCompleted;
 
@@ -27,16 +27,7 @@ namespace Utilities.Async
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void GetResult()
         {
-            var activeWork = Work;
-
-            try
-            {
-                activeWork.Task.GetAwaiter().GetResult();
-            }
-            finally
-            {
-                CoroutineWork.Return(activeWork);
-            }
+            CoroutineWork<object>.Return(work);
         }
     }
 
