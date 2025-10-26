@@ -17,6 +17,7 @@ namespace Utilities.Async
     {
         private static readonly ConcurrentQueue<CoroutineWork<T>> pool = new();
 
+        private readonly InstructionWrapper runWrapper = new();
         private readonly InstructionWrapper instructionWrapper = new();
 
         private CoroutineWork() { }
@@ -30,7 +31,7 @@ namespace Utilities.Async
                 SyncContextUtility.RunOnUnityThread(StartWorkCoroutineRunner);
             }
 
-            work.Result = default;
+            work.Result = null;
             work.Result = null;
             work.Exception = null;
             work.IsCompleted = false;
@@ -51,10 +52,10 @@ namespace Utilities.Async
 
         public static void Return(CoroutineWork<T> work)
         {
-            work.Exception = null;
-            work.Result = default;
-            work.instruction = default;
             work.IsCompleted = false;
+            work.instruction = null;
+            work.Exception = null;
+            work.Result = null;
             work.processStack.Clear();
             work.instructionWrapper.Clear();
             pool.Enqueue(work);
@@ -73,7 +74,7 @@ namespace Utilities.Async
 
         private static bool CheckStatus(IEnumerator worker, out object next)
         {
-            next = default;
+            next = null;
 #if UNITY_ADDRESSABLES
             switch (worker)
             {
@@ -94,7 +95,7 @@ namespace Utilities.Async
             }
 #endif
             var isDone = !worker.MoveNext();
-            next = isDone ? worker.Current : default;
+            next = isDone ? worker.Current : null;
             return isDone;
         }
 
@@ -115,9 +116,9 @@ namespace Utilities.Async
                     continue;
                 }
 
-                var topWorker = processStack.Peek();
                 bool isDone;
-                object currentWorker = default;
+                object currentWorker = null;
+                var topWorker = processStack.Peek();
 
                 try
                 {
