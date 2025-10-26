@@ -2,17 +2,19 @@
 
 using JetBrains.Annotations;
 using System;
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 
 namespace Utilities.Async
 {
-    public readonly struct CoroutineAwaiter : ICriticalNotifyCompletion, IAwaiter
+    public readonly struct YieldInstructionAwaiter : ICriticalNotifyCompletion, IAwaiter
     {
-        private readonly CoroutineWork<object> work;
+        private static readonly ConcurrentQueue<YieldInstructionWork<object>> pool = new();
+        private readonly YieldInstructionWork<object> work;
 
-        public CoroutineAwaiter(object instruction) : this()
-            => work = CoroutineWork<object>.Rent(instruction);
+        public YieldInstructionAwaiter(object instruction)
+            => work = YieldInstructionWork<object>.Rent(instruction);
 
         public bool IsCompleted => work.IsCompleted;
 
@@ -35,17 +37,18 @@ namespace Utilities.Async
             }
             finally
             {
-                CoroutineWork<object>.Return(work);
+                YieldInstructionWork<object>.Return(work);
             }
         }
     }
 
-    public readonly struct CoroutineAwaiter<T> : ICriticalNotifyCompletion, IAwaiter
+    public readonly struct YieldInstructionAwaiter<T> : ICriticalNotifyCompletion, IAwaiter
     {
-        private readonly CoroutineWork<T> work;
+        private static readonly ConcurrentQueue<YieldInstructionWork<T>> pool = new();
+        private readonly YieldInstructionWork<T> work;
 
-        public CoroutineAwaiter(object instruction) : this()
-            => work = CoroutineWork<T>.Rent(instruction);
+        public YieldInstructionAwaiter(object instruction)
+            => work = YieldInstructionWork<T>.Rent(instruction);
 
         public bool IsCompleted => work.IsCompleted;
 
@@ -70,7 +73,7 @@ namespace Utilities.Async
             }
             finally
             {
-                CoroutineWork<T>.Return(work);
+                YieldInstructionWork<T>.Return(work);
             }
         }
     }

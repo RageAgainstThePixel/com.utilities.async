@@ -13,11 +13,10 @@ using Utilities.Async.Addressables;
 
 namespace Utilities.Async
 {
-    internal sealed class CoroutineWork<T>
+    internal sealed class CoroutineWork<T> : IWorkItem
     {
         private static readonly ConcurrentQueue<CoroutineWork<T>> pool = new();
 
-        private readonly InstructionWrapper runWrapper = new();
         private readonly InstructionWrapper instructionWrapper = new();
 
         private CoroutineWork() { }
@@ -35,7 +34,6 @@ namespace Utilities.Async
             work.Result = null;
             work.Exception = null;
             work.IsCompleted = false;
-            work.instruction = instruction;
 
             if (instruction is IEnumerator enumerator)
             {
@@ -53,7 +51,6 @@ namespace Utilities.Async
         public static void Return(CoroutineWork<T> work)
         {
             work.IsCompleted = false;
-            work.instruction = null;
             work.Exception = null;
             work.Result = null;
             work.processStack.Clear();
@@ -63,7 +60,6 @@ namespace Utilities.Async
 
         private readonly Stack<IEnumerator> processStack = new();
 
-        private object instruction;
         private Action continuation;
 
         public Exception Exception { get; private set; }
@@ -148,28 +144,7 @@ namespace Utilities.Async
                     {
                         try
                         {
-                            switch (instruction)
-                            {
-#if UNITY_ASSET_BUNDLES
-                                case AssetBundleCreateRequest assetBundleCreateRequest:
-                                    Result = assetBundleCreateRequest.assetBundle;
-                                    break;
-                                case AssetBundleRequest assetBundleRequest:
-                                    Result = assetBundleRequest.asset;
-                                    break;
-#endif // UNITY_ASSET_BUNDLES
-                                case ResourceRequest resourceRequest:
-                                    Result = resourceRequest.asset;
-                                    break;
-#if !UNITY_2023_1_OR_NEWER
-                                case AsyncOperation asyncOperation:
-                                    Result = asyncOperation;
-                                    break;
-#endif
-                                default:
-                                    Result = currentWorker ?? topWorker.Current;
-                                    break;
-                            }
+                            Result = currentWorker ?? topWorker.Current;
                         }
                         catch (Exception e)
                         {
@@ -181,7 +156,7 @@ namespace Utilities.Async
                     }
                 }
 
-                // We could just yield return nested IEnumerator's here but we choose to do
+                // We could just yield return nested IEnumerator's here, but we choose to do
                 // our own handling here so that we can catch exceptions in nested coroutines
                 // instead of just top level coroutine
                 if (topWorker.Current is IEnumerator item)

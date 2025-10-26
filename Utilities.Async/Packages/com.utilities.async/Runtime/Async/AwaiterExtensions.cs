@@ -236,15 +236,15 @@ namespace Utilities.Async
 
 #if !UNITY_6000_0_OR_NEWER
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static CoroutineAwaiter GetAwaiter(this UnityMainThread instruction)
+        public static YieldInstructionAwaiter GetAwaiter(this UnityMainThread instruction)
             => new(instruction);
 
 #if UNITY_WEBGL && !UNITY_EDITOR
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static CoroutineAwaiter GetAwaiter(this BackgroundThread instruction)
+        public static YieldInstructionAwaiter GetAwaiter(this BackgroundThread instruction)
         {
             Debug.LogWarning($"{nameof(BackgroundThread)} not supported for {nameof(RuntimePlatform.WebGLPlayer)}");
-            return new CoroutineAwaiter(instruction);
+            return new YieldInstructionAwaiter(instruction);
         }
 #else
         public static ConfiguredTaskAwaitable.ConfiguredTaskAwaiter GetAwaiter(this BackgroundThread _)
@@ -253,50 +253,58 @@ namespace Utilities.Async
 #endif // !UNITY_6000_0_OR_NEWER
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static CoroutineAwaiter GetAwaiter(this WaitForSeconds instruction)
+        public static YieldInstructionAwaiter GetAwaiter(this WaitForSeconds instruction)
             => new(instruction);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static CoroutineAwaiter GetAwaiter(this WaitForEndOfFrame instruction)
+        public static YieldInstructionAwaiter GetAwaiter(this WaitForEndOfFrame instruction)
             => new(instruction);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static CoroutineAwaiter GetAwaiter(this WaitForFixedUpdate instruction)
+        public static YieldInstructionAwaiter GetAwaiter(this WaitForFixedUpdate instruction)
             => new(instruction);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static CoroutineAwaiter GetAwaiter(this WaitForSecondsRealtime instruction)
+        public static YieldInstructionAwaiter GetAwaiter(this WaitForSecondsRealtime instruction)
             => new(instruction);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static CoroutineAwaiter GetAwaiter(this WaitUntil instruction)
+        public static YieldInstructionAwaiter GetAwaiter(this WaitUntil instruction)
             => new(instruction);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static CoroutineAwaiter GetAwaiter(this WaitWhile instruction)
+        public static YieldInstructionAwaiter GetAwaiter(this WaitWhile instruction)
             => new(instruction);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static CoroutineAwaiter<T> GetAwaiter<T>(this ResourceRequest instruction)
+        public static YieldInstructionAwaiter<T> GetAwaiter<T>(this ResourceRequest instruction)
             => new(instruction);
 
 #if !UNITY_2023_1_OR_NEWER
 
-        public static CoroutineAwaiter<AsyncOperation> GetAwaiter(this AsyncOperation instruction)
+        public static YieldInstructionAwaiter<AsyncOperation> GetAwaiter(this AsyncOperation instruction)
             => new(instruction);
 
 #endif // !UNITY_2023_1_OR_NEWER
 #if UNITY_ASSET_BUNDLES
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static CoroutineAwaiter<AssetBundle> GetAwaiter(this AssetBundleCreateRequest instruction)
+        public static YieldInstructionAwaiter<AssetBundle> GetAwaiter(this AssetBundleCreateRequest instruction)
             => new(instruction);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static CoroutineAwaiter<Object> GetAwaiter(this AssetBundleRequest instruction)
+        public static YieldInstructionAwaiter GetAwaiter(this AssetBundleRequest instruction)
             => new(instruction);
 
 #endif //UNITY_ASSET_BUNDLES
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static YieldInstructionAwaiter GetAwaiter(this CustomYieldInstruction instruction)
+            => new(instruction);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static YieldInstructionAwaiter GetAwaiter(this YieldInstruction instruction)
+            => new(instruction);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CoroutineAwaiter<T> GetAwaiter<T>(this IEnumerator<T> coroutine)

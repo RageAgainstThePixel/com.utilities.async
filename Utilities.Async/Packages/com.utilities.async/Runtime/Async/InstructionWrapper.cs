@@ -28,13 +28,8 @@ namespace Utilities.Async
             }
         }
 
-        public void Reset() => throw new NotSupportedException();
-
-        public void Dispose()
-        {
-            instruction = null;
-            state = 0;
-        }
+        public void Reset()
+            => throw new NotSupportedException();
 
         public void Initialize(object value)
         {
