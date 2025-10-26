@@ -4,7 +4,6 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using UnityEngine;
 
 #if UNITY_ADDRESSABLES
@@ -14,153 +13,15 @@ using Utilities.Async.Addressables;
 
 namespace Utilities.Async
 {
-    internal class CoroutineWork
-    {
-        private static readonly ConcurrentQueue<CoroutineWork> pool = new();
-        private readonly InstructionWrapper instructionWrapper = new();
-
-        private CoroutineWork() { }
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static CoroutineWork Rent(CoroutineAwaiter awaiter, object instruction)
-        {
-            if (!pool.TryDequeue(out var work))
-            {
-                work = new CoroutineWork();
-                void StartWorkCoroutineRunner() => AwaiterExtensions.RunCoroutine(work.Run());
-                SyncContextUtility.RunOnUnityThread(StartWorkCoroutineRunner);
-            }
-
-            if (instruction is IEnumerator enumerator)
-            {
-                work.processStack.Push(enumerator);
-            }
-            else
-            {
-                work.instructionWrapper.Initialize(instruction);
-                work.processStack.Push(work.instructionWrapper);
-            }
-
-            work.Awaiter = awaiter;
-            return work;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Return(CoroutineWork work)
-        {
-            work.Awaiter = null;
-            work.IsCompleted = false;
-            work.Exception = null;
-            work.Continuation = null;
-            work.processStack.Clear();
-            work.instructionWrapper.Clear();
-            pool.Enqueue(work);
-        }
-
-        private readonly Stack<IEnumerator> processStack = new();
-
-        public Exception Exception { get; private set; }
-
-        public CoroutineAwaiter? Awaiter { get; private set; }
-
-        public bool IsCompleted { get; private set; }
-
-        public Action Continuation { get; set; }
-
-        private IEnumerator Run()
-        {
-            while (true)
-            {
-                if (IsCompleted)
-                {
-                    yield return null;
-                    continue;
-                }
-
-                if (Awaiter == null)
-                {
-                    IsCompleted = false;
-                    yield return null;
-                    continue;
-                }
-
-                if (processStack.Count == 0)
-                {
-                    IsCompleted = true;
-                    yield return null;
-                    continue;
-                }
-
-                var topWorker = processStack.Peek();
-                bool isDone;
-
-                try
-                {
-                    isDone = !topWorker.MoveNext();
-                }
-                catch (Exception e)
-                {
-                    // The IEnumerators we have in the process stack do not tell us the
-                    // actual names of the coroutine methods, but it does tell us the objects
-                    // that the IEnumerators are associated with, so we can at least try
-                    // adding that to the exception output
-                    Exception = processStack.GenerateExceptionTrace(e);
-                    CompleteWork();
-                    continue;
-                }
-
-                if (isDone)
-                {
-                    processStack.Pop();
-
-                    if (processStack.Count == 0)
-                    {
-                        CompleteWork();
-                        continue;
-                    }
-                }
-
-                // We could just yield return nested IEnumerator's here, but we choose to do
-                // our own handling here so that we can catch exceptions in nested coroutines
-                // instead of just top level coroutine
-                if (topWorker.Current is IEnumerator item)
-                {
-                    processStack.Push(item);
-                }
-                else
-                {
-                    // Return the current value to the unity engine so it can handle things like
-                    // WaitForSeconds, WaitToEndOfFrame, etc.
-                    yield return topWorker.Current;
-                }
-            }
-            // ReSharper disable once IteratorNeverReturns
-        }
-
-        private void CompleteWork()
-        {
-            IsCompleted = true;
-
-            try
-            {
-                Continuation?.Invoke();
-            }
-            catch (Exception e)
-            {
-                Debug.LogException(e);
-            }
-        }
-    }
-
     internal sealed class CoroutineWork<T>
     {
         private static readonly ConcurrentQueue<CoroutineWork<T>> pool = new();
+
         private readonly InstructionWrapper instructionWrapper = new();
 
         private CoroutineWork() { }
 
-        public static CoroutineWork<T> Rent(CoroutineAwaiter<T> awaiter, object instruction)
+        public static CoroutineWork<T> Rent(object instruction)
         {
             if (!pool.TryDequeue(out var work))
             {
@@ -170,8 +31,10 @@ namespace Utilities.Async
             }
 
             work.Result = default;
+            work.Result = null;
             work.Exception = null;
             work.IsCompleted = false;
+            work.instruction = instruction;
 
             if (instruction is IEnumerator enumerator)
             {
@@ -183,18 +46,11 @@ namespace Utilities.Async
                 work.processStack.Push(work.instructionWrapper);
             }
 
-            work.Awaiter = awaiter;
             return work;
-        }
-
-        private static IEnumerator ReturnResult(object instruction)
-        {
-            yield return instruction;
         }
 
         public static void Return(CoroutineWork<T> work)
         {
-            work.Awaiter = null;
             work.Exception = null;
             work.Result = default;
             work.instruction = default;
@@ -207,14 +63,11 @@ namespace Utilities.Async
         private readonly Stack<IEnumerator> processStack = new();
 
         private object instruction;
+        private Action continuation;
 
         public Exception Exception { get; private set; }
 
-        public CoroutineAwaiter<T>? Awaiter { get; private set; }
-
         public bool IsCompleted { get; private set; }
-
-        public Action Continuation { get; set; }
 
         public object Result { get; private set; }
 
@@ -251,13 +104,6 @@ namespace Utilities.Async
             {
                 if (IsCompleted)
                 {
-                    yield return null;
-                    continue;
-                }
-
-                if (Awaiter == null)
-                {
-                    IsCompleted = false;
                     yield return null;
                     continue;
                 }
@@ -351,13 +197,16 @@ namespace Utilities.Async
             // ReSharper disable once IteratorNeverReturns
         }
 
+        public void RegisterContinuation(Action action)
+            => continuation = action;
+
         private void CompleteWork()
         {
             IsCompleted = true;
 
             try
             {
-                Continuation?.Invoke();
+                continuation?.Invoke();
             }
             catch (Exception e)
             {

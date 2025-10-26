@@ -9,10 +9,10 @@ namespace Utilities.Async
 {
     public readonly struct CoroutineAwaiter : ICriticalNotifyCompletion, IAwaiter
     {
-        private readonly CoroutineWork work;
+        private readonly CoroutineWork<object> work;
 
         public CoroutineAwaiter(object instruction) : this()
-            => work = CoroutineWork.Rent(this, instruction);
+            => work = CoroutineWork<object>.Rent(instruction);
 
         public bool IsCompleted => work.IsCompleted;
 
@@ -20,7 +20,7 @@ namespace Utilities.Async
             => UnsafeOnCompleted(continuation);
 
         public void UnsafeOnCompleted(Action continuation)
-            => work.Continuation = continuation;
+            => work.RegisterContinuation(continuation);
 
         [UsedImplicitly]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -35,7 +35,7 @@ namespace Utilities.Async
             }
             finally
             {
-                CoroutineWork.Return(work);
+                CoroutineWork<object>.Return(work);
             }
         }
     }
@@ -45,7 +45,7 @@ namespace Utilities.Async
         private readonly CoroutineWork<T> work;
 
         public CoroutineAwaiter(object instruction) : this()
-            => work = CoroutineWork<T>.Rent(this, instruction);
+            => work = CoroutineWork<T>.Rent(instruction);
 
         public bool IsCompleted => work.IsCompleted;
 
@@ -53,7 +53,7 @@ namespace Utilities.Async
             => UnsafeOnCompleted(continuation);
 
         public void UnsafeOnCompleted(Action continuation)
-            => work.Continuation = continuation;
+            => work.RegisterContinuation(continuation);
 
         [UsedImplicitly]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
