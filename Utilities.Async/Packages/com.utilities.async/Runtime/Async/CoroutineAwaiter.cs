@@ -2,7 +2,6 @@
 
 using System;
 using System.Runtime.CompilerServices;
-using System.Runtime.ExceptionServices;
 using JetBrains.Annotations;
 
 namespace Utilities.Async
@@ -12,30 +11,31 @@ namespace Utilities.Async
         private readonly CoroutineWork work;
 
         public CoroutineAwaiter(object instruction) : this()
-            => work = CoroutineWork.Rent(this, instruction);
+            => work = CoroutineWork.Rent(instruction);
 
-        public bool IsCompleted => work.IsCompleted;
+        private CoroutineWork Work => work ?? throw new InvalidOperationException("CoroutineAwaiter is not initialized.");
+
+        public bool IsCompleted => Work.Task.IsCompleted;
 
         public void OnCompleted(Action continuation)
             => UnsafeOnCompleted(continuation);
 
         public void UnsafeOnCompleted(Action continuation)
-            => work.Continuation = continuation;
+            => Work.RegisterContinuation(continuation);
 
         [UsedImplicitly]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void GetResult()
         {
+            var activeWork = Work;
+
             try
             {
-                if (work.Exception != null)
-                {
-                    ExceptionDispatchInfo.Capture(work.Exception).Throw();
-                }
+                activeWork.Task.GetAwaiter().GetResult();
             }
             finally
             {
-                CoroutineWork.Return(work);
+                CoroutineWork.Return(activeWork);
             }
         }
     }
@@ -45,32 +45,31 @@ namespace Utilities.Async
         private readonly CoroutineWork<T> work;
 
         public CoroutineAwaiter(object instruction) : this()
-            => work = CoroutineWork<T>.Rent(this, instruction);
+            => work = CoroutineWork<T>.Rent(instruction);
 
-        public bool IsCompleted => work.IsCompleted;
+        private CoroutineWork<T> Work => work ?? throw new InvalidOperationException("CoroutineAwaiter is not initialized.");
+
+        public bool IsCompleted => Work.Task.IsCompleted;
 
         public void OnCompleted(Action continuation)
             => UnsafeOnCompleted(continuation);
 
         public void UnsafeOnCompleted(Action continuation)
-            => work.Continuation = continuation;
+            => Work.RegisterContinuation(continuation);
 
         [UsedImplicitly]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T GetResult()
         {
+            var activeWork = Work;
+
             try
             {
-                if (work.Exception != null)
-                {
-                    ExceptionDispatchInfo.Capture(work.Exception).Throw();
-                }
-
-                return (T)work.Result;
+                return activeWork.Task.GetAwaiter().GetResult();
             }
             finally
             {
-                CoroutineWork<T>.Return(work);
+                CoroutineWork<T>.Return(activeWork);
             }
         }
     }
