@@ -64,13 +64,25 @@ using Utilities.Async;
 
 public class ExampleAsyncScript : MonoBehaviour
 {
+        // For backwards compatibility with older Unity versions use the following snippet:
+#if !UNITY_2022_3_OR_NEWER
+        private readonly CancellationTokenSource lifetimeCts = new();
+        // ReSharper disable once InconsistentNaming
+        private CancellationToken destroyCancellationToken => lifetimeCts.Token;
+
+        private void OnDestroy()
+        {
+            lifetimeCts?.Cancel();
+        }
+#endif // !UNITY_2022_3_OR_NEWER
+
     private async void Start()
     {
         try
         {
             // always encapsulate try/catch around
             // async methods called from unity events
-            await MyFunctionAsync().ConfigureAwait(false);
+            await MyFunctionAsync(destroyCancellationToken).ConfigureAwait(false);
 
             // Get back to the main unity thread
             await Awaiters.UnityMainThread;
@@ -86,12 +98,18 @@ public class ExampleAsyncScript : MonoBehaviour
             backgroundInvokedAction.InvokeOnMainThread();
 
             // await on IEnumerator functions as well
-            // for backwards compatibility or older code
+            // for backwards compatibility or older code.
+            // These can also be called from background threads
+            // and the context will switch to main thread
             await MyEnumerableFunction();
+            await new WaitForSeconds(1f);
+            await new WaitForEndOfFrame();
+            await new WaitForFixedUpdate();
 
             // you can even get progress callbacks for AsyncOperations!
             await SceneManager.LoadSceneAsync(0)
-                .WithProgress(new Progress<float>(f => Debug.Log(f)));
+                .WithProgress(new Progress<float>(f => Debug.Log(f)))
+                .WithCancellation(destroyCancellationToken);
         }
         catch (Exception e)
         {
@@ -104,9 +122,9 @@ public class ExampleAsyncScript : MonoBehaviour
         Debug.Log(Application.dataPath);
     }
 
-    private async Task MyFunctionAsync()
+    private async Task MyFunctionAsync(CancellationToken cancellationToken)
     {
-        await Task.Delay(1000);
+        await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
     }
 
     private IEnumerator MyEnumerableFunction()

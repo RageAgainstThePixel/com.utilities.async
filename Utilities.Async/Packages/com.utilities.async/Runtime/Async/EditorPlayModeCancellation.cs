@@ -17,18 +17,23 @@ namespace Utilities.Async
         public static PlayModeStateChange CurrentPlayModeState { get; private set; }
 
         static EditorPlayModeCancellation()
-            => EditorApplication.playModeStateChanged += state =>
+        {
+            EditorApplication.playModeStateChanged += state =>
             {
-                CurrentPlayModeState = state;
-                Debug.Log(state);
-                switch (state)
+                lock (gate)
                 {
-                    case PlayModeStateChange.ExitingEditMode:
-                    case PlayModeStateChange.ExitingPlayMode:
-                        CancelAll();
-                        break;
+                    CurrentPlayModeState = state;
+                    // Debug.Log(state);
+                    switch (state)
+                    {
+                        case PlayModeStateChange.ExitingEditMode:
+                        case PlayModeStateChange.ExitingPlayMode:
+                            CancelAll();
+                            break;
+                    }
                 }
             };
+        }
 
         public static IDisposable Register(IEditorCancelable cancelable)
         {
@@ -39,12 +44,14 @@ namespace Utilities.Async
 
             lock (gate)
             {
-                if (CurrentPlayModeState is PlayModeStateChange.ExitingEditMode or PlayModeStateChange.ExitingPlayMode)
+                if (CurrentPlayModeState is PlayModeStateChange.EnteredPlayMode or PlayModeStateChange.EnteredEditMode)
                 {
-                    throw new InvalidOperationException();
+                    activeRegistrations.Add(cancelable);
                 }
-
-                activeRegistrations.Add(cancelable);
+                else
+                {
+                    throw new InvalidOperationException(CancellationMessage);
+                }
             }
 
             return new Registration(cancelable);

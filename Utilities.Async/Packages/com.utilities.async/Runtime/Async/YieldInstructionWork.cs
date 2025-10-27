@@ -70,9 +70,19 @@ namespace Utilities.Async
 
             work.instructionWrapper.Initialize(instruction);
 #if UNITY_EDITOR
-            work.editorCancellationRegistration?.Dispose();
-            work.editorCancellationTriggered = false;
-            work.editorCancellationRegistration = EditorPlayModeCancellation.Register(work);
+            try
+            {
+                work.editorCancellationRegistration?.Dispose();
+                work.editorCancellationTriggered = false;
+                work.editorCancellationRegistration = EditorPlayModeCancellation.Register(work);
+            }
+            catch (InvalidOperationException)
+            {
+                work.instructionWrapper.Cancel();
+                work.result = default;
+                work.exception = new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage);
+                work.status = ValueTaskSourceStatus.Canceled;
+            }
 #endif
 
             SyncContextUtility.RunOnUnityThread(work.runner);

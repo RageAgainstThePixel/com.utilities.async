@@ -13,6 +13,18 @@ namespace Utilities.Async.Samples.Demo
 {
     public class ExampleAsyncScript : MonoBehaviour
     {
+        // For backwards compatibility with older Unity versions use the following snippet:
+#if !UNITY_2022_3_OR_NEWER
+        private readonly CancellationTokenSource lifetimeCts = new();
+        // ReSharper disable once InconsistentNaming
+        private CancellationToken destroyCancellationToken => lifetimeCts.Token;
+
+        private void OnDestroy()
+        {
+            lifetimeCts?.Cancel();
+        }
+#endif // !UNITY_2022_3_OR_NEWER
+
         private async void Start()
         {
             try
@@ -30,11 +42,11 @@ namespace Utilities.Async.Samples.Demo
                 // always encapsulate try/catch around
                 // async methods called from unity events
                 // this is a long running task that returns to main thread
-                await MyFunctionAsync().ConfigureAwait(true);
+                await MyFunctionAsync(destroyCancellationToken).ConfigureAwait(true);
                 Debug.Log($"{nameof(MyFunctionAsync)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
 
                 // A long running task that ends up on a background thread
-                await MyFunctionAsync().ConfigureAwait(false);
+                await MyFunctionAsync(destroyCancellationToken).ConfigureAwait(false);
                 Debug.Log($"{nameof(MyFunctionAsync)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
 
                 // Get back to the main unity thread
@@ -59,7 +71,8 @@ namespace Utilities.Async.Samples.Demo
 
                 // you can even get progress callbacks for AsyncOperations!
                 await SceneManager.LoadSceneAsync(0)
-                    .WithProgress(new Progress<float>(f => Debug.Log($"LoadSceneAsync | {nameof(SyncContextUtility.IsMainThread)} ? {SyncContextUtility.IsMainThread} | {f}%")));
+                    .WithProgress(new Progress<float>(f => Debug.Log($"LoadSceneAsync | {nameof(SyncContextUtility.IsMainThread)} ? {SyncContextUtility.IsMainThread} | {f}%")))
+                    .WithCancellation(destroyCancellationToken);
             }
             catch (Exception e)
             {
@@ -95,7 +108,7 @@ namespace Utilities.Async.Samples.Demo
             yield return new WaitForSeconds(1);
             // We can even yield async functions
             // for better interoperability
-            yield return MyFunctionAsync();
+            yield return MyFunctionAsync(destroyCancellationToken);
         }
     }
 }

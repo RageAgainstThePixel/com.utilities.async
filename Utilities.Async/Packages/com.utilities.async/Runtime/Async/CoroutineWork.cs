@@ -76,9 +76,19 @@ namespace Utilities.Async
 
             work.coroutineWrapper.Initialize(instruction);
 #if UNITY_EDITOR
-            work.editorCancellationRegistration?.Dispose();
-            work.editorCancellationTriggered = false;
-            work.editorCancellationRegistration = EditorPlayModeCancellation.Register(work);
+            try
+            {
+                work.editorCancellationRegistration?.Dispose();
+                work.editorCancellationTriggered = false;
+                work.editorCancellationRegistration = EditorPlayModeCancellation.Register(work);
+            }
+            catch (InvalidOperationException)
+            {
+                work.exception = new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage);
+                work.status = ValueTaskSourceStatus.Canceled;
+                work.InvokeContinuation();
+                return work;
+            }
 #endif
 
             SyncContextUtility.RunOnUnityThread(work.runner);
