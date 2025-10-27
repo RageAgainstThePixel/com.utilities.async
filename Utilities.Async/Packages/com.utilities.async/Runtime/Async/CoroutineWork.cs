@@ -14,10 +14,17 @@ using Utilities.Async.Addressables;
 namespace Utilities.Async
 {
     internal sealed class CoroutineWork<T> : IWorkItem
+#if UNITY_EDITOR
+        , IEditorCancelable
+#endif
     {
         private static readonly ConcurrentQueue<CoroutineWork<T>> pool = new();
 
-        private readonly InstructionWrapper instructionWrapper = new();
+        private readonly SimpleCoroutineWrapper simpleCoroutineWrapper = new();
+
+#if UNITY_EDITOR
+        private IDisposable editorCancellationRegistration;
+#endif
 
         private CoroutineWork() { }
 
@@ -40,9 +47,14 @@ namespace Utilities.Async
             }
             else
             {
-                work.instructionWrapper.Initialize(instruction);
-                work.processStack.Push(work.instructionWrapper);
+                work.simpleCoroutineWrapper.Initialize(instruction);
+                work.processStack.Push(work.simpleCoroutineWrapper);
             }
+
+#if UNITY_EDITOR
+            work.editorCancellationRegistration?.Dispose();
+            work.editorCancellationRegistration = EditorPlayModeCancellation.Register(work);
+#endif
 
             return work;
         }
@@ -53,7 +65,11 @@ namespace Utilities.Async
             work.Exception = null;
             work.Result = null;
             work.processStack.Clear();
-            work.instructionWrapper.Clear();
+            work.simpleCoroutineWrapper.Clear();
+#if UNITY_EDITOR
+            work.editorCancellationRegistration?.Dispose();
+            work.editorCancellationRegistration = null;
+#endif
             pool.Enqueue(work);
         }
 
@@ -131,7 +147,7 @@ namespace Utilities.Async
                     // that the IEnumerators are associated with, so we can at least try
                     // adding that to the exception output
                     Exception = processStack.GenerateExceptionTrace(e);
-                    CompleteWork();
+                    InvokeContinuation();
                     continue;
                 }
 
@@ -150,7 +166,7 @@ namespace Utilities.Async
                             Debug.LogException(e);
                         }
 
-                        CompleteWork();
+                        InvokeContinuation();
                         continue;
                     }
                 }
@@ -175,7 +191,7 @@ namespace Utilities.Async
         public void RegisterContinuation(Action action)
             => continuation = action;
 
-        private void CompleteWork()
+        private void InvokeContinuation()
         {
             IsCompleted = true;
 
@@ -188,5 +204,19 @@ namespace Utilities.Async
                 Debug.LogException(e);
             }
         }
+
+#if UNITY_EDITOR
+        void IEditorCancelable.CancelFromEditor()
+        {
+            if (IsCompleted) { return; }
+            editorCancellationRegistration?.Dispose();
+            editorCancellationRegistration = null;
+            simpleCoroutineWrapper.Cancel();
+            processStack.Clear();
+            Result = null;
+            Exception ??= new OperationCanceledException(EditorPlayModeCancellation.CancellationMessage);
+            InvokeContinuation();
+        }
+#endif
     }
 }

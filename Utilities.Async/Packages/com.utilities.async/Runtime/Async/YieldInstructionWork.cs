@@ -9,6 +9,9 @@ using System.Threading.Tasks.Sources;
 namespace Utilities.Async
 {
     internal sealed class YieldInstructionWork<T> : IValueTaskSource<T>
+#if UNITY_EDITOR
+        , IEditorCancelable
+#endif
     {
         private static readonly ConcurrentQueue<YieldInstructionWork<T>> pool = new();
 
@@ -20,6 +23,11 @@ namespace Utilities.Async
         private ValueTaskSourceStatus status;
         private Exception exception;
         private T result;
+
+#if UNITY_EDITOR
+        private IDisposable editorCancellationRegistration;
+        private bool editorCancellationTriggered;
+#endif
 
         private YieldInstructionWork()
         {
@@ -60,6 +68,11 @@ namespace Utilities.Async
             }
 
             work.instructionWrapper.Initialize(instruction);
+#if UNITY_EDITOR
+            work.editorCancellationRegistration?.Dispose();
+            work.editorCancellationRegistration = EditorPlayModeCancellation.Register(work);
+            work.editorCancellationTriggered = false;
+#endif
             SyncContextUtility.RunOnUnityThread(work.runner);
             return work;
         }
@@ -72,11 +85,21 @@ namespace Utilities.Async
             work.continuation = null;
             work.continuationState = null;
             work.instructionWrapper.Clear();
+#if UNITY_EDITOR
+            work.editorCancellationRegistration?.Dispose();
+            work.editorCancellationRegistration = null;
+            work.editorCancellationTriggered = false;
+#endif
             pool.Enqueue(work);
         }
 
         public void CompleteWork(object taskResult)
         {
+            if (status != ValueTaskSourceStatus.Pending)
+            {
+                return;
+            }
+
             try
             {
                 result = taskResult switch
@@ -212,5 +235,23 @@ namespace Utilities.Async
                 payloadPool.Enqueue(payload);
             }
         }
+
+#if UNITY_EDITOR
+        void IEditorCancelable.CancelFromEditor()
+        {
+            if (editorCancellationTriggered) { return; }
+            editorCancellationTriggered = true;
+            editorCancellationRegistration?.Dispose();
+            editorCancellationRegistration = null;
+            if (status != ValueTaskSourceStatus.Pending) { return; }
+            instructionWrapper.Cancel();
+            result = default;
+            exception = new OperationCanceledException(EditorPlayModeCancellation.CancellationMessage);
+            status = ValueTaskSourceStatus.Canceled;
+            InvokeContinuation();
+        }
+#endif
+
+        internal bool HasCompleted => status != ValueTaskSourceStatus.Pending;
     }
 }

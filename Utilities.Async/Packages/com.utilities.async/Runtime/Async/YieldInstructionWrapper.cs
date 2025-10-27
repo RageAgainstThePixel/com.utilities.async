@@ -74,5 +74,11 @@ namespace Utilities.Async
             instruction = null;
             state = 0;
         }
+
+        public void Cancel()
+        {
+            instruction = null;
+            state = 2;
+        }
     }
 }
