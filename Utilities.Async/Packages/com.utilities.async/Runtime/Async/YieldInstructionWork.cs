@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
-using System.Threading;
 using System.Threading.Tasks.Sources;
 
 namespace Utilities.Async
@@ -95,10 +94,7 @@ namespace Utilities.Async
 
         public void CompleteWork(object taskResult)
         {
-            if (status != ValueTaskSourceStatus.Pending)
-            {
-                return;
-            }
+            if (status != ValueTaskSourceStatus.Pending) { return; }
 
             try
             {
@@ -128,7 +124,7 @@ namespace Utilities.Async
             var stateCopy = continuationState;
             continuation = null;
             continuationState = null;
-            ScheduleContinuation(continuationCopy, stateCopy);
+            SyncContextUtility.ScheduleContinuation(continuationCopy, stateCopy);
         }
 
         ValueTaskSourceStatus IValueTaskSource<T>.GetStatus(short token)
@@ -165,7 +161,7 @@ namespace Utilities.Async
 
             if (status != ValueTaskSourceStatus.Pending)
             {
-                ScheduleContinuation(completedContinuation, state);
+                SyncContextUtility.ScheduleContinuation(completedContinuation, state);
                 return;
             }
 
@@ -178,61 +174,6 @@ namespace Utilities.Async
             if (token != Version)
             {
                 throw new InvalidOperationException("Token does not match the current operation version.");
-            }
-        }
-
-        private static void ScheduleContinuation(Action<object> action, object state)
-        {
-            if (SyncContextUtility.IsMainThread)
-            {
-                action(state);
-                return;
-            }
-
-            var payload = ContinuationPayload.Rent(action, state);
-            SyncContextUtility.UnitySynchronizationContext.Post(ContinuationCallback, payload);
-        }
-
-        private static readonly SendOrPostCallback ContinuationCallback = static payloadObj =>
-        {
-            var payload = (ContinuationPayload)payloadObj;
-
-            try
-            {
-                payload.Action(payload.State);
-            }
-            finally
-            {
-                ContinuationPayload.Return(payload);
-            }
-        };
-
-        private sealed class ContinuationPayload
-        {
-            private static readonly ConcurrentQueue<ContinuationPayload> payloadPool = new();
-
-            public Action<object> Action;
-            public object State;
-
-            private ContinuationPayload() { }
-
-            public static ContinuationPayload Rent(Action<object> action, object state)
-            {
-                if (!payloadPool.TryDequeue(out var payload))
-                {
-                    payload = new ContinuationPayload();
-                }
-
-                payload.Action = action;
-                payload.State = state;
-                return payload;
-            }
-
-            public static void Return(ContinuationPayload payload)
-            {
-                payload.Action = null;
-                payload.State = null;
-                payloadPool.Enqueue(payload);
             }
         }
 

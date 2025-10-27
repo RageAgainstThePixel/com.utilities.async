@@ -104,5 +104,31 @@ namespace Utilities.Async
                 UnitySynchronizationContext.Post(postCallback, callback);
             }
         }
+
+        private static readonly SendOrPostCallback continuationCallback = static payload =>
+        {
+            var continuation = (ContinuationPayload)payload;
+
+            try
+            {
+                continuation.Action(continuation.State);
+            }
+            finally
+            {
+                ContinuationPayload.Return(continuation);
+            }
+        };
+
+        internal static void ScheduleContinuation(Action<object> continuation, object state)
+        {
+            if (IsMainThread)
+            {
+                continuation(state);
+                return;
+            }
+
+            var payload = ContinuationPayload.Rent(continuation, state);
+            UnitySynchronizationContext.Post(continuationCallback, payload);
+        }
     }
 }
