@@ -24,6 +24,8 @@ namespace Utilities.Async
         private Exception exception;
         private T result;
 
+        internal short Version { get; private set; }
+
 #if UNITY_EDITOR
         private IDisposable editorCancellationRegistration;
         private bool editorCancellationTriggered;
@@ -36,8 +38,6 @@ namespace Utilities.Async
             status = ValueTaskSourceStatus.Pending;
             Version = 0;
         }
-
-        internal short Version { get; private set; }
 
         public static YieldInstructionWork<T> Rent(object instruction)
         {
