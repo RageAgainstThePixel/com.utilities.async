@@ -23,7 +23,6 @@
 using System;
 using System.Threading;
 using UnityEngine;
-using UnityEngine.Scripting;
 
 namespace Utilities.Async
 {
@@ -86,22 +85,23 @@ namespace Utilities.Async
 
         private static void SendOrPostCallback(object state)
         {
-            if (IsMainThread && state is Action action)
+            if (!IsMainThread) { return; }
+
+            if (state is Action action)
             {
                 action.Invoke();
             }
         }
 
-        [Preserve]
-        public static void RunOnUnityThread(Action action)
+        public static void RunOnUnityThread(Action callback)
         {
             if (IsMainThread)
             {
-                action?.Invoke();
+                callback.Invoke();
             }
             else
             {
-                UnitySynchronizationContext.Post(postCallback, action);
+                UnitySynchronizationContext.Post(postCallback, callback);
             }
         }
     }
