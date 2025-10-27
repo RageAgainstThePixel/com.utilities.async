@@ -3,8 +3,8 @@
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using UnityEngine;
+using System.Runtime.ExceptionServices;
+using System.Threading.Tasks.Sources;
 
 #if UNITY_ADDRESSABLES
 using UnityEngine.ResourceManagement.AsyncOperations;
@@ -13,208 +13,217 @@ using Utilities.Async.Addressables;
 
 namespace Utilities.Async
 {
-    internal sealed class CoroutineWork<T> : IWorkItem
+    internal sealed class CoroutineWork<T> : IValueTaskSource<T>
 #if UNITY_EDITOR
         , IEditorCancelable
 #endif
     {
         private static readonly ConcurrentQueue<CoroutineWork<T>> pool = new();
 
-        private readonly CoroutineWrapper coroutineWrapper = new();
+        private readonly Action runner;
+        private readonly CoroutineWrapper<T> coroutineWrapper;
 
 #if UNITY_EDITOR
         private IDisposable editorCancellationRegistration;
+        private bool editorCancellationTriggered;
 #endif
 
-        private CoroutineWork() { }
+        private Action<object> continuation;
+        private object continuationState;
+        private ValueTaskSourceStatus status;
+        private Exception exception;
+        private T result;
 
-        public static CoroutineWork<T> Rent(object instruction)
+        internal short Version { get; private set; }
+
+        private CoroutineWork()
         {
+            coroutineWrapper = new CoroutineWrapper<T>(this);
+            runner = () => AwaiterExtensions.RunCoroutine(coroutineWrapper);
+            status = ValueTaskSourceStatus.Pending;
+            Version = 0;
+        }
+
+        public static CoroutineWork<T> Rent(IEnumerator instruction)
+        {
+            if (instruction == null)
+            {
+                throw new InvalidOperationException($"{nameof(instruction)} cannot be null!");
+            }
+
             if (!pool.TryDequeue(out var work))
             {
                 work = new CoroutineWork<T>();
-                void StartWorkCoroutineRunner() => AwaiterExtensions.RunCoroutine(work.Run());
-                SyncContextUtility.RunOnUnityThread(StartWorkCoroutineRunner);
             }
 
-            work.Result = null;
-            work.Exception = null;
-            work.IsCompleted = false;
+            work.status = ValueTaskSourceStatus.Pending;
+            work.exception = null;
+            work.result = default;
+            work.continuation = null;
+            work.continuationState = null;
 
-            if (instruction is IEnumerator enumerator)
+            unchecked
             {
-                work.processStack.Push(enumerator);
-            }
-            else
-            {
-                work.coroutineWrapper.Initialize(instruction);
-                work.processStack.Push(work.coroutineWrapper);
+                work.Version++;
             }
 
+            if (work.Version == 0)
+            {
+                work.Version = 1;
+            }
+
+            work.coroutineWrapper.Initialize(instruction);
 #if UNITY_EDITOR
             work.editorCancellationRegistration?.Dispose();
             work.editorCancellationRegistration = EditorPlayModeCancellation.Register(work);
+            work.editorCancellationTriggered = false;
 #endif
 
+            SyncContextUtility.RunOnUnityThread(work.runner);
             return work;
         }
 
         public static void Return(CoroutineWork<T> work)
         {
-            work.IsCompleted = false;
-            work.Exception = null;
-            work.Result = null;
-            work.processStack.Clear();
+            work.result = default;
+            work.exception = null;
+            work.status = ValueTaskSourceStatus.Pending;
+            work.continuation = null;
+            work.continuationState = null;
             work.coroutineWrapper.Clear();
 #if UNITY_EDITOR
             work.editorCancellationRegistration?.Dispose();
             work.editorCancellationRegistration = null;
+            work.editorCancellationTriggered = false;
 #endif
             pool.Enqueue(work);
         }
 
-        private readonly Stack<IEnumerator> processStack = new();
-
-        private Action continuation;
-
-        public Exception Exception { get; private set; }
-
-        public bool IsCompleted { get; private set; }
-
-        public object Result { get; private set; }
-
-        private static bool CheckStatus(IEnumerator worker, out object next)
+        public void CompleteWork(object taskResult)
         {
-            next = null;
-#if UNITY_ADDRESSABLES
-            switch (worker)
-            {
-                case AsyncOperationHandle operationHandle:
-                    if (operationHandle.IsValid())
-                    {
-                        next = worker.Current;
-                    }
-                    operationHandle.TryThrowException();
-                    return operationHandle.IsDone;
-                case AsyncOperationHandle<T> operationHandle:
-                    if (operationHandle.IsValid())
-                    {
-                        next = worker.Current;
-                    }
-                    operationHandle.TryThrowException();
-                    return operationHandle.IsDone;
-            }
-#endif
-            var isDone = !worker.MoveNext();
-            next = isDone ? worker.Current : null;
-            return isDone;
-        }
-
-        private IEnumerator Run()
-        {
-            while (true)
-            {
-                if (IsCompleted)
-                {
-                    yield return null;
-                    continue;
-                }
-
-                if (processStack.Count == 0)
-                {
-                    IsCompleted = true;
-                    yield return null;
-                    continue;
-                }
-
-                bool isDone;
-                object currentWorker = null;
-                var topWorker = processStack.Peek();
-
-                try
-                {
-                    isDone = CheckStatus(topWorker, out var nextWorker);
-
-                    if (isDone)
-                    {
-                        currentWorker = nextWorker;
-                    }
-                }
-                catch (Exception e)
-                {
-                    // The IEnumerators we have in the process stack do not tell us the
-                    // actual names of the coroutine methods, but it does tell us the objects
-                    // that the IEnumerators are associated with, so we can at least try
-                    // adding that to the exception output
-                    Exception = processStack.GenerateExceptionTrace(e);
-                    InvokeContinuation();
-                    continue;
-                }
-
-                if (isDone)
-                {
-                    processStack.Pop();
-
-                    if (processStack.Count == 0)
-                    {
-                        try
-                        {
-                            Result = currentWorker ?? topWorker.Current;
-                        }
-                        catch (Exception e)
-                        {
-                            Debug.LogException(e);
-                        }
-
-                        InvokeContinuation();
-                        continue;
-                    }
-                }
-
-                // We could just yield return nested IEnumerator's here, but we choose to do
-                // our own handling here so that we can catch exceptions in nested coroutines
-                // instead of just top level coroutine
-                if (topWorker.Current is IEnumerator item)
-                {
-                    processStack.Push(item);
-                }
-                else
-                {
-                    // Return the current value to the unity engine so it can handle things like
-                    // WaitForSeconds, WaitToEndOfFrame, etc.
-                    yield return topWorker.Current;
-                }
-            }
-            // ReSharper disable once IteratorNeverReturns
-        }
-
-        public void RegisterContinuation(Action action)
-            => continuation = action;
-
-        private void InvokeContinuation()
-        {
-            IsCompleted = true;
+            if (status != ValueTaskSourceStatus.Pending) { return; }
 
             try
             {
-                continuation?.Invoke();
+                switch (taskResult)
+                {
+#if UNITY_ADDRESSABLES
+                    case AsyncOperationHandle operationHandle:
+                        if (operationHandle.IsValid())
+                        {
+                            result = (T)operationHandle.Result;
+                        }
+
+                        operationHandle.TryThrowException();
+                        break;
+                    case AsyncOperationHandle<T> operationHandle:
+                        if (operationHandle.IsValid())
+                        {
+                            result = operationHandle.Result;
+                        }
+
+                        operationHandle.TryThrowException();
+                        break;
+#endif
+                    case T typedResult:
+                        result = typedResult;
+                        break;
+                    case null when default(T) is null:
+                        result = default;
+                        break;
+                    default:
+                        // ReSharper disable once PossibleInvalidCastException
+                        result = (T)taskResult;
+                        break;
+                }
+
+                status = ValueTaskSourceStatus.Succeeded;
             }
             catch (Exception e)
             {
-                Debug.LogException(e);
+                exception = e;
+                status = ValueTaskSourceStatus.Faulted;
+            }
+
+            InvokeContinuation();
+        }
+
+        private void InvokeContinuation()
+        {
+            var continuationCopy = continuation;
+            if (continuationCopy == null) { return; }
+            var stateCopy = continuationState;
+            continuation = null;
+            continuationState = null;
+            SyncContextUtility.ScheduleContinuation(continuationCopy, stateCopy);
+        }
+
+        ValueTaskSourceStatus IValueTaskSource<T>.GetStatus(short token)
+        {
+            ValidateToken(token);
+            return status;
+        }
+
+        T IValueTaskSource<T>.GetResult(short token)
+        {
+            ValidateToken(token);
+
+            if (status == ValueTaskSourceStatus.Pending)
+            {
+                throw new InvalidOperationException("Operation has not completed yet.");
+            }
+
+            if (exception != null)
+            {
+                ExceptionDispatchInfo.Capture(exception).Throw();
+            }
+
+            return result;
+        }
+
+        void IValueTaskSource<T>.OnCompleted(Action<object> completedContinuation, object state, short token, ValueTaskSourceOnCompletedFlags flags)
+        {
+            ValidateToken(token);
+
+            if (completedContinuation == null)
+            {
+                throw new ArgumentNullException(nameof(completedContinuation));
+            }
+
+            if (status != ValueTaskSourceStatus.Pending)
+            {
+                SyncContextUtility.ScheduleContinuation(completedContinuation, state);
+                return;
+            }
+
+            continuation = completedContinuation;
+            continuationState = state;
+        }
+
+        private void ValidateToken(short token)
+        {
+            if (token != Version)
+            {
+                throw new InvalidOperationException("Token does not match the current operation version.");
             }
         }
 
 #if UNITY_EDITOR
         void IEditorCancelable.CancelFromEditor()
         {
-            if (IsCompleted) { return; }
+            if (editorCancellationTriggered) { return; }
+            editorCancellationTriggered = true;
             editorCancellationRegistration?.Dispose();
             editorCancellationRegistration = null;
-            coroutineWrapper.Cancel();
-            processStack.Clear();
-            Result = null;
-            Exception ??= new OperationCanceledException(EditorPlayModeCancellation.CancellationMessage);
+
+            if (status == ValueTaskSourceStatus.Pending)
+            {
+                coroutineWrapper.Cancel();
+                result = default;
+                exception = new OperationCanceledException(EditorPlayModeCancellation.CancellationMessage);
+                status = ValueTaskSourceStatus.Canceled;
+            }
+
             InvokeContinuation();
         }
 #endif

@@ -5,10 +5,14 @@ using System.Collections;
 
 namespace Utilities.Async
 {
-    internal sealed class CoroutineWrapper : IEnumerator
+    internal sealed class CoroutineWrapper<T> : IEnumerator
     {
         private int state;
         private object instruction;
+        private CoroutineWork<T> work;
+
+        public CoroutineWrapper(CoroutineWork<T> owner)
+            => work = owner;
 
         public object Current => state == 1 ? instruction : null;
 
@@ -21,6 +25,7 @@ namespace Utilities.Async
                     return true;
                 case 1:
                     state = 2;
+                    work.CompleteWork(instruction);
                     instruction = null;
                     return false;
                 default:

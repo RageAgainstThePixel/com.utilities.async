@@ -6,7 +6,7 @@ namespace Utilities.Async.Editor
 {
     public static class EditorAwaiterExtensions
     {
-        public static CoroutineAwaiter GetAwaiter(this EditorWaitForSeconds instruction)
-            => new CoroutineAwaiter(instruction);
+        public static YieldInstructionAwaiter GetAwaiter(this EditorWaitForSeconds instruction)
+            => new(instruction);
     }
 }

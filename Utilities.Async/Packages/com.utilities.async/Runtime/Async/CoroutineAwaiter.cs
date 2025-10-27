@@ -2,36 +2,38 @@
 
 using JetBrains.Annotations;
 using System;
+using System.Collections;
 using System.Runtime.CompilerServices;
-using System.Runtime.ExceptionServices;
+using System.Threading.Tasks;
 
 namespace Utilities.Async
 {
     public readonly struct CoroutineAwaiter : ICriticalNotifyCompletion, IAwaiter
     {
         private readonly CoroutineWork<object> work;
+        private readonly ValueTaskAwaiter<object> awaiter;
 
-        public CoroutineAwaiter(object instruction) : this()
-            => work = CoroutineWork<object>.Rent(instruction);
+        public CoroutineAwaiter(IEnumerator instruction) : this()
+        {
+            work = CoroutineWork<object>.Rent(instruction);
+            awaiter = new ValueTask<object>(work, work.Version).GetAwaiter();
+        }
 
-        public bool IsCompleted => work.IsCompleted;
+        public bool IsCompleted => awaiter.IsCompleted;
 
         public void OnCompleted(Action continuation)
-            => UnsafeOnCompleted(continuation);
+            => awaiter.OnCompleted(continuation);
 
         public void UnsafeOnCompleted(Action continuation)
-            => work.RegisterContinuation(continuation);
+            => awaiter.UnsafeOnCompleted(continuation);
 
         [UsedImplicitly]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void GetResult()
+        public object GetResult()
         {
             try
             {
-                if (work.Exception != null)
-                {
-                    ExceptionDispatchInfo.Capture(work.Exception).Throw();
-                }
+                return awaiter.GetResult();
             }
             finally
             {
@@ -43,17 +45,21 @@ namespace Utilities.Async
     public readonly struct CoroutineAwaiter<T> : ICriticalNotifyCompletion, IAwaiter
     {
         private readonly CoroutineWork<T> work;
+        private readonly ValueTaskAwaiter<T> awaiter;
 
-        public CoroutineAwaiter(object instruction) : this()
-            => work = CoroutineWork<T>.Rent(instruction);
+        public CoroutineAwaiter(IEnumerator instruction) : this()
+        {
+            work = CoroutineWork<T>.Rent(instruction);
+            awaiter = new ValueTask<T>(work, work.Version).GetAwaiter();
+        }
 
-        public bool IsCompleted => work.IsCompleted;
+        public bool IsCompleted => awaiter.IsCompleted;
 
         public void OnCompleted(Action continuation)
-            => UnsafeOnCompleted(continuation);
+            => awaiter.OnCompleted(continuation);
 
         public void UnsafeOnCompleted(Action continuation)
-            => work.RegisterContinuation(continuation);
+            => awaiter.UnsafeOnCompleted(continuation);
 
         [UsedImplicitly]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -61,12 +67,7 @@ namespace Utilities.Async
         {
             try
             {
-                if (work.Exception != null)
-                {
-                    ExceptionDispatchInfo.Capture(work.Exception).Throw();
-                }
-
-                return (T)work.Result;
+                return awaiter.GetResult();
             }
             finally
             {
