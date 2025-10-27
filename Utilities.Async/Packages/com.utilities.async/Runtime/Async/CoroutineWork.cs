@@ -20,7 +20,7 @@ namespace Utilities.Async
     {
         private static readonly ConcurrentQueue<CoroutineWork<T>> pool = new();
 
-        private readonly SimpleCoroutineWrapper simpleCoroutineWrapper = new();
+        private readonly CoroutineWrapper coroutineWrapper = new();
 
 #if UNITY_EDITOR
         private IDisposable editorCancellationRegistration;
@@ -47,8 +47,8 @@ namespace Utilities.Async
             }
             else
             {
-                work.simpleCoroutineWrapper.Initialize(instruction);
-                work.processStack.Push(work.simpleCoroutineWrapper);
+                work.coroutineWrapper.Initialize(instruction);
+                work.processStack.Push(work.coroutineWrapper);
             }
 
 #if UNITY_EDITOR
@@ -65,7 +65,7 @@ namespace Utilities.Async
             work.Exception = null;
             work.Result = null;
             work.processStack.Clear();
-            work.simpleCoroutineWrapper.Clear();
+            work.coroutineWrapper.Clear();
 #if UNITY_EDITOR
             work.editorCancellationRegistration?.Dispose();
             work.editorCancellationRegistration = null;
@@ -211,7 +211,7 @@ namespace Utilities.Async
             if (IsCompleted) { return; }
             editorCancellationRegistration?.Dispose();
             editorCancellationRegistration = null;
-            simpleCoroutineWrapper.Cancel();
+            coroutineWrapper.Cancel();
             processStack.Clear();
             Result = null;
             Exception ??= new OperationCanceledException(EditorPlayModeCancellation.CancellationMessage);

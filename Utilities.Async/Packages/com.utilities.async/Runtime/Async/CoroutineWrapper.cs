@@ -5,7 +5,7 @@ using System.Collections;
 
 namespace Utilities.Async
 {
-    internal sealed class SimpleCoroutineWrapper : IEnumerator
+    internal sealed class CoroutineWrapper : IEnumerator
     {
         private int state;
         private object instruction;
