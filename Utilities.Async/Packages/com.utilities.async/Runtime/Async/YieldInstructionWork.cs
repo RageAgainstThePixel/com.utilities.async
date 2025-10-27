@@ -243,15 +243,17 @@ namespace Utilities.Async
             editorCancellationTriggered = true;
             editorCancellationRegistration?.Dispose();
             editorCancellationRegistration = null;
-            if (status != ValueTaskSourceStatus.Pending) { return; }
-            instructionWrapper.Cancel();
-            result = default;
-            exception = new OperationCanceledException(EditorPlayModeCancellation.CancellationMessage);
-            status = ValueTaskSourceStatus.Canceled;
+
+            if (status == ValueTaskSourceStatus.Pending)
+            {
+                instructionWrapper.Cancel();
+                result = default;
+                exception = new OperationCanceledException(EditorPlayModeCancellation.CancellationMessage);
+                status = ValueTaskSourceStatus.Canceled;
+            }
+
             InvokeContinuation();
         }
 #endif
-
-        internal bool HasCompleted => status != ValueTaskSourceStatus.Pending;
     }
 }

@@ -277,7 +277,7 @@ namespace Utilities.Async
             => new(instruction);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static YieldInstructionAwaiter<T> GetAwaiter<T>(this ResourceRequest instruction)
+        public static YieldInstructionAwaiter<Object> GetAwaiter(this ResourceRequest instruction)
             => new(instruction);
 
 #if !UNITY_2023_1_OR_NEWER
@@ -293,7 +293,7 @@ namespace Utilities.Async
             => new(instruction);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static YieldInstructionAwaiter GetAwaiter(this AssetBundleRequest instruction)
+        public static YieldInstructionAwaiter<Object> GetAwaiter(this AssetBundleRequest instruction)
             => new(instruction);
 
 #endif //UNITY_ASSET_BUNDLES
