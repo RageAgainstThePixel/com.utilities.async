@@ -14,9 +14,21 @@ namespace Utilities.Async
 
         private static readonly object gate = new();
         private static readonly HashSet<IEditorCancelable> activeRegistrations = new();
+        public static PlayModeStateChange CurrentPlayModeState { get; private set; }
 
         static EditorPlayModeCancellation()
-            => EditorApplication.playModeStateChanged += _ => CancelAll();
+            => EditorApplication.playModeStateChanged += state =>
+            {
+                CurrentPlayModeState = state;
+                Debug.Log(state);
+                switch (state)
+                {
+                    case PlayModeStateChange.ExitingEditMode:
+                    case PlayModeStateChange.ExitingPlayMode:
+                        CancelAll();
+                        break;
+                }
+            };
 
         public static IDisposable Register(IEditorCancelable cancelable)
         {
@@ -27,6 +39,11 @@ namespace Utilities.Async
 
             lock (gate)
             {
+                if (CurrentPlayModeState is PlayModeStateChange.ExitingEditMode or PlayModeStateChange.ExitingPlayMode)
+                {
+                    throw new InvalidOperationException();
+                }
+
                 activeRegistrations.Add(cancelable);
             }
 
@@ -50,9 +67,9 @@ namespace Utilities.Async
                 {
                     registration?.CancelFromEditor();
                 }
-                catch (Exception ex)
+                catch (Exception e)
                 {
-                    Debug.LogException(ex);
+                    Debug.LogException(e);
                 }
             }
         }

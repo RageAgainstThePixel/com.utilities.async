@@ -3,6 +3,7 @@
 using System;
 using System.Collections;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -62,7 +63,16 @@ namespace Utilities.Async.Samples.Demo
             }
             catch (Exception e)
             {
-                Debug.LogError(e);
+                switch (e)
+                {
+                    case TaskCanceledException:
+                    case OperationCanceledException:
+                        // ignore
+                        break;
+                    default:
+                        Debug.LogException(e);
+                        break;
+                }
             }
             finally
             {
@@ -75,9 +85,9 @@ namespace Utilities.Async.Samples.Demo
             Debug.Log($"{nameof(BackgroundInvokedAction)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread}");
         }
 
-        private async Task MyFunctionAsync()
+        private async Task MyFunctionAsync(CancellationToken cancellationToken = default)
         {
-            await Task.Delay(1000).ConfigureAwait(false);
+            await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
         }
 
         private IEnumerator MyEnumerableFunction()

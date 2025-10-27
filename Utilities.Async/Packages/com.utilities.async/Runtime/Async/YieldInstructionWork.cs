@@ -42,7 +42,7 @@ namespace Utilities.Async
         {
             if (instruction == null)
             {
-                throw new InvalidOperationException($"{nameof(instruction)} cannot be null!");
+                throw new ArgumentNullException(nameof(instruction));
             }
 
             if (!pool.TryDequeue(out var work))
@@ -69,8 +69,8 @@ namespace Utilities.Async
             work.instructionWrapper.Initialize(instruction);
 #if UNITY_EDITOR
             work.editorCancellationRegistration?.Dispose();
-            work.editorCancellationRegistration = EditorPlayModeCancellation.Register(work);
             work.editorCancellationTriggered = false;
+            work.editorCancellationRegistration = EditorPlayModeCancellation.Register(work);
 #endif
             SyncContextUtility.RunOnUnityThread(work.runner);
             return work;
@@ -142,6 +142,16 @@ namespace Utilities.Async
                 throw new InvalidOperationException("Operation has not completed yet.");
             }
 
+            if (status == ValueTaskSourceStatus.Canceled)
+            {
+                if (exception is TaskCanceledException tce)
+                {
+                    throw tce;
+                }
+
+                throw new TaskCanceledException();
+            }
+
             if (exception != null)
             {
                 ExceptionDispatchInfo.Capture(exception).Throw();
@@ -189,7 +199,7 @@ namespace Utilities.Async
             {
                 instructionWrapper.Cancel();
                 result = default;
-                exception = new OperationCanceledException(EditorPlayModeCancellation.CancellationMessage);
+                exception = new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage);
                 status = ValueTaskSourceStatus.Canceled;
             }
 
