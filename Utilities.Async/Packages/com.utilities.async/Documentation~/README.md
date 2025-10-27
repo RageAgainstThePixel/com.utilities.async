@@ -52,6 +52,13 @@ Where possible, it is recommended to use the built-in Unity Awaitables for new p
 
 ### Example
 
+> [!IMPORTANT]
+> Always pass the `destroyCancellationToken` to async methods called from Unity events to avoid long running tasks after the object has been destroyed. This could lead to memory leaks or other unexpected behavior.
+>
+> For Unity versions prior to 2022.3, you can use the provided snippet to create a `CancellationToken` that is cancelled on `OnDestroy`.
+>
+> It is also recommended to always encapsulate async methods called from Unity events in try/catch blocks to handle exceptions properly, otherwise they can go unobserved and silently fail.
+
 ```csharp
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
