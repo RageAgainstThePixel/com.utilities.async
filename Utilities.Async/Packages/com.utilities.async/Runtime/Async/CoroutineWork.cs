@@ -4,6 +4,8 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Threading.Tasks.Sources;
 
 #if UNITY_ADDRESSABLES
@@ -88,8 +90,8 @@ namespace Utilities.Async
             work.result = default;
             work.exception = null;
             work.status = ValueTaskSourceStatus.Pending;
-            work.continuation = null;
-            work.continuationState = null;
+            Interlocked.Exchange(ref work.continuation, null);
+            Volatile.Write(ref work.continuationState, null);
             work.coroutineWrapper.Clear();
 #if UNITY_EDITOR
             work.editorCancellationRegistration?.Dispose();
@@ -124,7 +126,7 @@ namespace Utilities.Async
 
                         operationHandle.TryThrowException();
                         break;
-#endif
+#endif // UNITY_ADDRESSABLES
                     case T typedResult:
                         result = typedResult;
                         break;
@@ -150,12 +152,11 @@ namespace Utilities.Async
 
         private void InvokeContinuation()
         {
-            var continuationCopy = continuation;
-            if (continuationCopy == null) { return; }
-            var stateCopy = continuationState;
-            continuation = null;
-            continuationState = null;
-            SyncContextUtility.ScheduleContinuation(continuationCopy, stateCopy);
+            var cont = Interlocked.Exchange(ref continuation, null);
+            if (cont == null) { return; }
+            var state = Volatile.Read(ref continuationState);
+            Volatile.Write(ref continuationState, null);
+            SyncContextUtility.ScheduleContinuation(cont, state);
         }
 
         ValueTaskSourceStatus IValueTaskSource<T>.GetStatus(short token)
@@ -175,7 +176,6 @@ namespace Utilities.Async
 
             if (status == ValueTaskSourceStatus.Canceled)
             {
-                // Prefer throwing a TaskCanceledException in editor play-mode cancel paths
                 if (exception is TaskCanceledException tce)
                 {
                     throw tce;
@@ -207,8 +207,26 @@ namespace Utilities.Async
                 return;
             }
 
-            continuation = completedContinuation;
-            continuationState = state;
+            Volatile.Write(ref continuationState, state);
+            var prev = Interlocked.CompareExchange(ref continuation, completedContinuation, null);
+
+            if (prev != null)
+            {
+                SyncContextUtility.ScheduleContinuation(completedContinuation, state);
+                return;
+            }
+
+            if (status != ValueTaskSourceStatus.Pending)
+            {
+                var c = Interlocked.Exchange(ref continuation, null);
+                var s = Volatile.Read(ref continuationState);
+                Volatile.Write(ref continuationState, null);
+
+                if (c != null)
+                {
+                    SyncContextUtility.ScheduleContinuation(c, s);
+                }
+            }
         }
 
         private void ValidateToken(short token)
