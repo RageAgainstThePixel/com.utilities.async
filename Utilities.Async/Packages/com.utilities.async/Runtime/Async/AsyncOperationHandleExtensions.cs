@@ -2,6 +2,7 @@
 
 #if UNITY_ADDRESSABLES
 
+using System.Runtime.CompilerServices;
 using UnityEngine.ResourceManagement.AsyncOperations;
 
 namespace Utilities.Async.Addressables
@@ -20,9 +21,11 @@ namespace Utilities.Async.Addressables
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CoroutineAwaiter<AsyncOperationHandle> GetAwaiter(this AsyncOperationHandle instruction)
             => new(instruction);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static CoroutineAwaiter<T> GetAwaiter<T>(this AsyncOperationHandle<T> instruction)
             => new(instruction);
     }
