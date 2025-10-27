@@ -31,7 +31,6 @@ namespace Utilities.Async
             }
 
             work.Result = null;
-            work.Result = null;
             work.Exception = null;
             work.IsCompleted = false;
 
