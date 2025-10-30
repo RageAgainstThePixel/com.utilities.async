@@ -20,7 +20,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//#if !UNITY_6000_0_OR_NEWER
 using UnityEngine;
 
 namespace Utilities.Async
@@ -34,4 +33,3 @@ namespace Utilities.Async
         public override bool keepWaiting => false;
     }
 }
-//#endif // UNITY_6000_0_OR_NEWER

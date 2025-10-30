@@ -230,7 +230,6 @@ namespace Utilities.Async
             void OnCompleted(AsyncOperation op) => opTcs.SetResult(op);
         }
 
-        //#if !UNITY_6000_0_OR_NEWER
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static YieldInstructionAwaiter GetAwaiter(this UnityMainThread instruction)
             => new(instruction);
@@ -246,7 +245,6 @@ namespace Utilities.Async
         public static ConfiguredTaskAwaitable.ConfiguredTaskAwaiter GetAwaiter(this BackgroundThread _)
             => BackgroundThread.GetAwaiter();
 #endif // UNITY_WEBGL && !UNITY_EDITOR
-        //#endif // !UNITY_6000_0_OR_NEWER
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static YieldInstructionAwaiter GetAwaiter(this WaitForSeconds instruction)
