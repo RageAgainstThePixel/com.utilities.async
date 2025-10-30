@@ -45,12 +45,27 @@ openupm add com.utilities.async
 
 ## Documentation
 
-## How does it compare to Awaitables in Unity 6?
+### Table of Contents
+
+- [Installing](#installing)
+- [Documentation](#documentation)
+- [How does it compare to Awaitables in Unity 6?](#how-does-it-compare-to-awaitables-in-unity-6)
+- [Implementation notes](#implementation-notes)
+- [WebGL Support](#webgl-support)
+- [Samples & Tests](#samples--tests)
+
+### How does it compare to Awaitables in Unity 6?
 
 [Unity 6 introduced Awaitables](https://docs.unity3d.com/6000.2/Documentation/Manual/async-await-support.html) in UnityEngine, which provide similar functionality to Utilities.Async.
 Where possible, it is recommended to use the built-in Unity Awaitables for new projects, as they are officially supported and maintained by Unity.
 
-### Example
+### Implementation notes
+
+This package implements coroutine and yield-instruction awaiters with a focus on low allocations and Unity-compatible threading semantics.
+
+- Awaiters for coroutines and yield instructions are built on top of ValueTask-compatible sources (`IValueTaskSource<T>`) and use internal pooling (e.g. `CoroutineTaskSource<T>`, `YieldInstructionTaskSource<T>`) to reduce GC pressure when awaiting many operations.
+- Exceptions thrown from nested IEnumerator/coroutine stacks are captured and wrapped with a best-effort object trace (reflection is used to extract compiler-generated fields). This can help debugging, but the object-trace logic relies on implementation details and may be brittle across engine or compiler changes.
+- Editor playmode transitions are handled via an internal cancellation system (`EditorPlayModeCancellation`) so outstanding awaiters are cancelled when exiting play mode to avoid orphaned work in the Editor.
 
 > [!IMPORTANT]
 > Always pass the `destroyCancellationToken` to async methods called from Unity events to avoid long running tasks after the object has been destroyed. This could lead to memory leaks or other unexpected behavior.
@@ -58,6 +73,34 @@ Where possible, it is recommended to use the built-in Unity Awaitables for new p
 > For Unity versions prior to 2022.3, you can use the provided snippet to create a `CancellationToken` that is cancelled on `OnDestroy`.
 >
 > It is also recommended to always encapsulate async methods called from Unity events in try/catch blocks to handle exceptions properly, otherwise they can go unobserved and silently fail.
+
+#### Addressables
+
+If you enable `UNITY_ADDRESSABLES`, the package provides awaiters and exception propagation for `AsyncOperationHandle` via `AsyncOperationHandleExtensions.cs`. When awaiting Addressables operations the extension will rethrow operation exceptions so they propagate to your try/catch blocks.
+
+#### Editor behavior
+
+When running in the Unity Editor the package uses `EditorCoroutineUtility` (where applicable) and registers awaiters for safe cancellation during play-mode state changes. This prevents many common pitfalls where awaited operations outlive the play session.
+
+### WebGL Support
+
+Shamelessly lifted from <https://github.com/VolodymyrBS/WebGLThreadingPatcher>
+
+WebGL support is now supported, but be aware that long tasks will not run on the background thread and will block the main thread. All tasks will be executed by just one thread so any blocking calls will freeze whole application. Basically it similar to async/await behavior in Blazor.
+
+#### How does it work?
+
+`WebGLPostBuildCallback` uses a IIl2CppProcessor callback to rewrite entries in `mscorelib.dll` and change some method implementations. It changes `ThreadPool` methods that enqueue work items of delegate work to `SynchronizationContext` so all items will be executed in same thread. Also it patches `Timer` implementation to use Javascript timer functionality.
+
+> [!NOTE]
+> The package provides two pieces to improve ThreadPool/Timer behavior for WebGL builds:
+>
+> - `Editor/WebGL/WebGLPostBuildCallback.cs` — a post-build IL rewrite (Mono.Cecil) that adapts ThreadPool/Timer methods to post work to the Unity SynchronizationContext in the built player.
+> - `Plugins/SystemThreadingTimer.jslib` — a small JS library used by the patched Timer implementation.
+>
+> Even with these pieces, WebGL does not provide true background threads. The post-build patch makes queued work execute on the main thread rather than fail silently, but long-running CPU-bound work will still block the runtime. Avoid heavy CPU work on WebGL; prefer offloading work to a server or using WebAssembly-friendly patterns.
+
+## Samples & Tests
 
 ```csharp
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -144,12 +187,9 @@ public class ExampleAsyncScript : MonoBehaviour
 }
 ```
 
-### WebGL Support
+The package includes a demo sample and unit tests to demonstrate typical usage and to verify main-thread/background-thread behavior:
 
-Shamelessly lifted from <https://github.com/VolodymyrBS/WebGLThreadingPatcher>
+- Sample: `Packages/com.utilities.async/Samples~/Demo/ExampleAsyncScript.cs` — demonstrates `Awaiters.UnityMainThread`, `Awaiters.BackgroundThread`, awaiting yield instructions, and `.WithProgress().WithCancellation()` patterns.
+- Tests: `Packages/com.utilities.async/Tests/TestFixture_01.cs` — Unity test example that exercises Awaiters and coroutine awaiting.
 
-WebGL support is now supported, but be aware that long tasks will not run on the background thread and will block the main thread. All tasks will be executed by just one thread so any blocking calls will freeze whole application. Basically it similar to async/await behavior in Blazor.
-
-#### How does it work?
-
-`WebGLPostBuildCallback` uses a IIl2CppProcessor callback to rewrite entries in `mscorelib.dll` and change some method implementations. It changes `ThreadPool` methods that enqueue work items of delegate work to `SynchronizationContext` so all items will be executed in same thread. Also it patches `Timer` implementation to use Javascript timer functionality.
+Run the sample in the Unity editor or run the tests with the Unity Test Runner to validate behavior in your environment.
