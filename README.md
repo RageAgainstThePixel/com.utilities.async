@@ -60,7 +60,7 @@ openupm add com.utilities.async
 Where possible, it is recommended to use the built-in Unity Awaitables for new projects, as they are officially supported and maintained by Unity.
 
 > [!WARNING]
-> Be aware that unity's built-in `Awaitable.UnityMainThread` could potentially lead to deadlocks in certain scenarios, especially when used in combination with other async code that also tries to marshal back to the main thread. Always test thoroughly when using Awaitable.UnityMainThread in complex async workflows.
+> Be aware that unity's built-in [`Awaitable.UnityMainThread`](https://docs.unity3d.com/6000.2/Documentation/Manual/async-awaitable-continuations.html) could potentially lead to deadlocks in certain scenarios, especially when used in combination with other async code that also tries to marshal back to the main thread. Always test thoroughly when using Awaitable.UnityMainThread in complex async workflows.
 
 ### Implementation
 
