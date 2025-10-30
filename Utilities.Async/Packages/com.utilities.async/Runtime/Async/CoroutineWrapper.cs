@@ -6,19 +6,18 @@ using System.Collections.Generic;
 
 namespace Utilities.Async
 {
-    // ReSharper disable once ClassWithVirtualMembersNeverInherited.Global
-    internal class CoroutineWrapper<T> : IEnumerator
+    internal sealed class CoroutineWrapper<T> : IEnumerator
     {
-        private readonly CoroutineWork<T> owner;
+        private readonly CoroutineWork<T> work;
         private readonly Stack<IEnumerator> processStack;
 
-        public CoroutineWrapper(CoroutineWork<T> coroutineOwner)
+        public CoroutineWrapper(CoroutineWork<T> owner)
         {
             processStack = new Stack<IEnumerator>();
-            owner = coroutineOwner;
+            work = owner;
         }
 
-        protected virtual bool CheckStatus(IEnumerator worker, out object next)
+        private static bool CheckStatus(IEnumerator worker, out object next)
         {
             var isDone = !worker.MoveNext();
             next = isDone ? worker.Current : null;
@@ -31,7 +30,7 @@ namespace Utilities.Async
         {
             while (true)
             {
-                if (processStack.Count == 0) { return false; }
+                if (processStack.Count == 0 || work.IsComplete) { return false; }
 
                 var topWorker = processStack.Peek();
                 bool isDone;
@@ -43,7 +42,7 @@ namespace Utilities.Async
                 }
                 catch (Exception e)
                 {
-                    owner.FailWithException(processStack.GenerateExceptionTrace(e));
+                    work.FailWithException(processStack.GenerateExceptionTrace(e));
                     return false;
                 }
 
@@ -53,7 +52,7 @@ namespace Utilities.Async
 
                     if (processStack.Count == 0)
                     {
-                        owner.CompleteWork(nextWorker ?? topWorker.Current);
+                        work.CompleteWork(nextWorker ?? topWorker.Current);
                         return false;
                     }
 

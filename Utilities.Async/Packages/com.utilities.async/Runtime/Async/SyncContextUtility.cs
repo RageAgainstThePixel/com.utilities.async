@@ -79,7 +79,8 @@ namespace Utilities.Async
         /// <summary>
         /// Is this being called from the main thread?
         /// </summary>
-        public static bool IsMainThread => UnitySynchronizationContext == SynchronizationContext.Current;
+        public static bool IsMainThread
+            => UnityThreadId == Thread.CurrentThread.ManagedThreadId;
 
         private static SendOrPostCallback postCallback = SendOrPostCallback;
 

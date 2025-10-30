@@ -19,6 +19,11 @@ namespace Utilities.Async
 
         public bool MoveNext()
         {
+            if (work.IsCompleted)
+            {
+                InstructionComplete();
+            }
+
             switch (state)
             {
                 case 0:

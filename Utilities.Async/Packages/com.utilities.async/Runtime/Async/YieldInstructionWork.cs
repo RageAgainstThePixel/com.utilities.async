@@ -21,11 +21,13 @@ namespace Utilities.Async
 
         private Action<object> continuation;
         private object continuationState;
-        private ValueTaskSourceStatus status;
+        private volatile ValueTaskSourceStatus status;
         private Exception exception;
         private T result;
 
         internal short Version { get; private set; }
+
+        internal bool IsCompleted => status != ValueTaskSourceStatus.Pending;
 
 #if UNITY_EDITOR
         private IDisposable editorCancellationRegistration;
@@ -82,8 +84,6 @@ namespace Utilities.Async
                 work.result = default;
                 work.exception = new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage);
                 work.status = ValueTaskSourceStatus.Canceled;
-                work.InvokeContinuation();
-                return work;
             }
 #endif
 
@@ -150,6 +150,12 @@ namespace Utilities.Async
         T IValueTaskSource<T>.GetResult(short token)
         {
             ValidateToken(token);
+
+            // Prevent synchronous blocking waits on the Unity main thread which would cause a deadlock
+            if (SyncContextUtility.IsMainThread)
+            {
+                throw new InvalidOperationException("Synchronous wait on the Unity main thread is not supported for yield-instruction awaiters. Use 'await' instead to avoid deadlocks.");
+            }
 
             if (status == ValueTaskSourceStatus.Pending)
             {
