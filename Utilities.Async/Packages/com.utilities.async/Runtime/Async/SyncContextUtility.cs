@@ -124,11 +124,12 @@ namespace Utilities.Async
             if (IsMainThread)
             {
                 continuation(state);
-                return;
             }
-
-            var payload = ContinuationPayload.Rent(continuation, state);
-            UnitySynchronizationContext.Post(continuationCallback, payload);
+            else
+            {
+                var payload = ContinuationPayload.Rent(continuation, state);
+                UnitySynchronizationContext.Post(continuationCallback, payload);
+            }
         }
     }
 }
