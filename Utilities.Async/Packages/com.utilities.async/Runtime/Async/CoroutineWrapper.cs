@@ -8,13 +8,13 @@ namespace Utilities.Async
 {
     internal sealed class CoroutineWrapper<T> : IEnumerator
     {
-        private readonly CoroutineWork<T> work;
+        private readonly CoroutineTaskSource<T> taskSource;
         private readonly Stack<IEnumerator> processStack;
 
-        public CoroutineWrapper(CoroutineWork<T> owner)
+        public CoroutineWrapper(CoroutineTaskSource<T> owner)
         {
             processStack = new Stack<IEnumerator>();
-            work = owner;
+            taskSource = owner;
         }
 
         private static bool CheckStatus(IEnumerator worker, out object next)
@@ -30,7 +30,7 @@ namespace Utilities.Async
         {
             while (true)
             {
-                if (processStack.Count == 0 || work.IsComplete) { return false; }
+                if (processStack.Count == 0 || taskSource.IsComplete) { return false; }
 
                 var topWorker = processStack.Peek();
                 bool isDone;
@@ -42,7 +42,7 @@ namespace Utilities.Async
                 }
                 catch (Exception e)
                 {
-                    work.FailWithException(processStack.GenerateExceptionTrace(e));
+                    taskSource.FailWithException(processStack.GenerateExceptionTrace(e));
                     return false;
                 }
 
@@ -52,7 +52,7 @@ namespace Utilities.Async
 
                     if (processStack.Count == 0)
                     {
-                        work.CompleteWork(nextWorker ?? topWorker.Current);
+                        taskSource.CompleteWork(nextWorker ?? topWorker.Current);
                         return false;
                     }
 

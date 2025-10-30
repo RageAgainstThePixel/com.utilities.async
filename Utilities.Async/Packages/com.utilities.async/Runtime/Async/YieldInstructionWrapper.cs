@@ -10,16 +10,16 @@ namespace Utilities.Async
     {
         private int state;
         private object instruction;
-        private YieldInstructionWork<T> work;
+        private YieldInstructionTaskSource<T> taskSource;
 
-        public YieldInstructionWrapper(YieldInstructionWork<T> owner)
-            => work = owner;
+        public YieldInstructionWrapper(YieldInstructionTaskSource<T> owner)
+            => taskSource = owner;
 
         public object Current => state == 1 ? instruction : null;
 
         public bool MoveNext()
         {
-            if (work.IsCompleted)
+            if (taskSource.IsCompleted)
             {
                 InstructionComplete();
             }
@@ -54,14 +54,14 @@ namespace Utilities.Async
             {
 #if UNITY_ASSET_BUNDLES
                 case AssetBundleRequest assetBundleRequest:
-                    work.CompleteWork(assetBundleRequest.asset);
+                    taskSource.CompleteWork(assetBundleRequest.asset);
                     break;
                 case AssetBundleCreateRequest assetBundleCreateRequest:
-                    work.CompleteWork(assetBundleCreateRequest.assetBundle);
+                    taskSource.CompleteWork(assetBundleCreateRequest.assetBundle);
                     break;
 #endif
                 case ResourceRequest resourceRequest:
-                    work.CompleteWork(resourceRequest.asset);
+                    taskSource.CompleteWork(resourceRequest.asset);
                     break;
 #if !UNITY_2023_1_OR_NEWER
                 case AsyncOperation asyncOperation:
@@ -69,7 +69,7 @@ namespace Utilities.Async
                     break;
 #endif
                 default:
-                    work.CompleteWork(instruction);
+                    taskSource.CompleteWork(instruction);
                     break;
             }
         }

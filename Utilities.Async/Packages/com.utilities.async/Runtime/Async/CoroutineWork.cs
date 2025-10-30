@@ -15,12 +15,12 @@ using Utilities.Async.Addressables;
 
 namespace Utilities.Async
 {
-    internal sealed class CoroutineWork<T> : IValueTaskSource<T>
+    internal sealed class CoroutineTaskSource<T> : IValueTaskSource<T>
 #if UNITY_EDITOR
         , IEditorCancelable
 #endif
     {
-        private static readonly ConcurrentQueue<CoroutineWork<T>> pool = new();
+        private static readonly ConcurrentQueue<CoroutineTaskSource<T>> pool = new();
 
         private readonly Action runner;
         private readonly CoroutineWrapper<T> coroutineWrapper;
@@ -40,7 +40,7 @@ namespace Utilities.Async
 
         internal bool IsComplete => status != ValueTaskSourceStatus.Pending;
 
-        private CoroutineWork()
+        private CoroutineTaskSource()
         {
             coroutineWrapper = new CoroutineWrapper<T>(this);
             runner = () => AwaiterExtensions.RunCoroutine(coroutineWrapper);
@@ -48,7 +48,7 @@ namespace Utilities.Async
             Version = 0;
         }
 
-        public static CoroutineWork<T> Rent(IEnumerator instruction)
+        public static CoroutineTaskSource<T> Rent(IEnumerator instruction)
         {
             if (instruction == null)
             {
@@ -57,7 +57,7 @@ namespace Utilities.Async
 
             if (!pool.TryDequeue(out var work))
             {
-                work = new CoroutineWork<T>();
+                work = new CoroutineTaskSource<T>();
             }
 
             work.status = ValueTaskSourceStatus.Pending;
@@ -95,20 +95,20 @@ namespace Utilities.Async
             return work;
         }
 
-        public static void Return(CoroutineWork<T> work)
+        public static void Return(CoroutineTaskSource<T> taskSource)
         {
-            work.result = default;
-            work.exception = null;
-            work.status = ValueTaskSourceStatus.Pending;
-            Interlocked.Exchange(ref work.continuation, null);
-            Volatile.Write(ref work.continuationState, null);
-            work.coroutineWrapper.Clear();
+            taskSource.result = default;
+            taskSource.exception = null;
+            taskSource.status = ValueTaskSourceStatus.Pending;
+            Interlocked.Exchange(ref taskSource.continuation, null);
+            Volatile.Write(ref taskSource.continuationState, null);
+            taskSource.coroutineWrapper.Clear();
 #if UNITY_EDITOR
-            work.editorCancellationRegistration?.Dispose();
-            work.editorCancellationRegistration = null;
-            work.editorCancellationTriggered = false;
+            taskSource.editorCancellationRegistration?.Dispose();
+            taskSource.editorCancellationRegistration = null;
+            taskSource.editorCancellationTriggered = false;
 #endif
-            pool.Enqueue(work);
+            pool.Enqueue(taskSource);
         }
 
         public void CompleteWork(object taskResult)

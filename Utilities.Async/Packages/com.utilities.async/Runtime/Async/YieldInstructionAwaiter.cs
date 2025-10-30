@@ -9,13 +9,13 @@ namespace Utilities.Async
 {
     public readonly struct YieldInstructionAwaiter : ICriticalNotifyCompletion, IAwaiter
     {
-        private readonly YieldInstructionWork<object> work;
+        private readonly YieldInstructionTaskSource<object> taskSource;
         private readonly ValueTaskAwaiter<object> awaiter;
 
         public YieldInstructionAwaiter(object instruction)
         {
-            work = YieldInstructionWork<object>.Rent(instruction);
-            awaiter = new ValueTask<object>(work, work.Version).GetAwaiter();
+            taskSource = YieldInstructionTaskSource<object>.Rent(instruction);
+            awaiter = new ValueTask<object>(taskSource, taskSource.Version).GetAwaiter();
         }
 
         public bool IsCompleted => awaiter.IsCompleted;
@@ -36,20 +36,20 @@ namespace Utilities.Async
             }
             finally
             {
-                YieldInstructionWork<object>.Return(work);
+                YieldInstructionTaskSource<object>.Return(taskSource);
             }
         }
     }
 
     public readonly struct YieldInstructionAwaiter<T> : ICriticalNotifyCompletion, IAwaiter
     {
-        private readonly YieldInstructionWork<T> work;
+        private readonly YieldInstructionTaskSource<T> taskSource;
         private readonly ValueTaskAwaiter<T> awaiter;
 
         public YieldInstructionAwaiter(object instruction)
         {
-            work = YieldInstructionWork<T>.Rent(instruction);
-            awaiter = new ValueTask<T>(work, work.Version).GetAwaiter();
+            taskSource = YieldInstructionTaskSource<T>.Rent(instruction);
+            awaiter = new ValueTask<T>(taskSource, taskSource.Version).GetAwaiter();
         }
 
         public bool IsCompleted => awaiter.IsCompleted;
@@ -70,7 +70,7 @@ namespace Utilities.Async
             }
             finally
             {
-                YieldInstructionWork<T>.Return(work);
+                YieldInstructionTaskSource<T>.Return(taskSource);
             }
         }
     }

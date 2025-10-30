@@ -10,13 +10,13 @@ namespace Utilities.Async
 {
     public readonly struct CoroutineAwaiter : ICriticalNotifyCompletion, IAwaiter
     {
-        private readonly CoroutineWork<object> work;
+        private readonly CoroutineTaskSource<object> taskSource;
         private readonly ValueTaskAwaiter<object> awaiter;
 
         public CoroutineAwaiter(IEnumerator instruction) : this()
         {
-            work = CoroutineWork<object>.Rent(instruction);
-            awaiter = new ValueTask<object>(work, work.Version).GetAwaiter();
+            taskSource = CoroutineTaskSource<object>.Rent(instruction);
+            awaiter = new ValueTask<object>(taskSource, taskSource.Version).GetAwaiter();
         }
 
         public bool IsCompleted => awaiter.IsCompleted;
@@ -37,20 +37,20 @@ namespace Utilities.Async
             }
             finally
             {
-                CoroutineWork<object>.Return(work);
+                CoroutineTaskSource<object>.Return(taskSource);
             }
         }
     }
 
     public readonly struct CoroutineAwaiter<T> : ICriticalNotifyCompletion, IAwaiter
     {
-        private readonly CoroutineWork<T> work;
+        private readonly CoroutineTaskSource<T> taskSource;
         private readonly ValueTaskAwaiter<T> awaiter;
 
         public CoroutineAwaiter(IEnumerator instruction) : this()
         {
-            work = CoroutineWork<T>.Rent(instruction);
-            awaiter = new ValueTask<T>(work, work.Version).GetAwaiter();
+            taskSource = CoroutineTaskSource<T>.Rent(instruction);
+            awaiter = new ValueTask<T>(taskSource, taskSource.Version).GetAwaiter();
         }
 
         public bool IsCompleted => awaiter.IsCompleted;
@@ -71,7 +71,7 @@ namespace Utilities.Async
             }
             finally
             {
-                CoroutineWork<T>.Return(work);
+                CoroutineTaskSource<T>.Return(taskSource);
             }
         }
     }
