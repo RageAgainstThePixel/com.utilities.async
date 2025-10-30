@@ -48,7 +48,7 @@ openupm add com.utilities.async
 ## How does it compare to Awaitables in Unity 6?
 
 [Unity 6 introduced Awaitables](https://docs.unity3d.com/6000.2/Documentation/Manual/async-await-support.html) in UnityEngine, which provide similar functionality to Utilities.Async.
-Where possible, it is recommended to use the built-in Unity Awaitables for new projects, as they are officially supported and maintained by Unity. `Awaiters.UnityMainThread` and `Awaiters.BackgroundThread` use the same underlying implementation as Unity's built-in Awaitables and is forwards compatible.
+Where possible, it is recommended to use the built-in Unity Awaitables for new projects, as they are officially supported and maintained by Unity.
 
 ### Example
 
