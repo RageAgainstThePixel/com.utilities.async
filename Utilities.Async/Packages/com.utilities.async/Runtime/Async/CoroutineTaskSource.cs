@@ -101,25 +101,17 @@ namespace Utilities.Async
 
             try
             {
-                T value = default;
+                T value;
 
                 switch (taskResult)
                 {
 #if UNITY_ADDRESSABLES
                     case AsyncOperationHandle operationHandle:
-                        if (operationHandle.IsValid())
-                        {
-                            value = (T)operationHandle.Result;
-                        }
-
+                        value = operationHandle.IsValid() ? (T)operationHandle.Result : default;
                         operationHandle.TryThrowException();
                         break;
                     case AsyncOperationHandle<T> operationHandle:
-                        if (operationHandle.IsValid())
-                        {
-                            value = operationHandle.Result;
-                        }
-
+                        value = operationHandle.IsValid() ? operationHandle.Result : default;
                         operationHandle.TryThrowException();
                         break;
 #endif // UNITY_ADDRESSABLES

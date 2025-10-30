@@ -13,7 +13,7 @@ namespace Utilities.Async
         private readonly CoroutineTaskSource<object> taskSource;
         private readonly ValueTaskAwaiter<object> awaiter;
 
-        public CoroutineAwaiter(IEnumerator instruction) : this()
+        public CoroutineAwaiter(IEnumerator instruction)
         {
             taskSource = CoroutineTaskSource<object>.Rent(instruction);
             awaiter = new ValueTask<object>(taskSource, taskSource.Version).GetAwaiter();
@@ -47,7 +47,7 @@ namespace Utilities.Async
         private readonly CoroutineTaskSource<T> taskSource;
         private readonly ValueTaskAwaiter<T> awaiter;
 
-        public CoroutineAwaiter(IEnumerator instruction) : this()
+        public CoroutineAwaiter(IEnumerator instruction)
         {
             taskSource = CoroutineTaskSource<T>.Rent(instruction);
             awaiter = new ValueTask<T>(taskSource, taskSource.Version).GetAwaiter();
