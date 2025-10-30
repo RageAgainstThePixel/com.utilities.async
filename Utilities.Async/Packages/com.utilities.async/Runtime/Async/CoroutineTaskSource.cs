@@ -20,8 +20,8 @@ namespace Utilities.Async
     {
         private static readonly ConcurrentQueue<CoroutineTaskSource<T>> pool = new();
 
-        private readonly Action runner;
-        private readonly CoroutineWrapper<T> coroutineWrapper;
+        private readonly CoroutineWorker<T> coroutineWorker;
+
         private ManualResetValueTaskSourceCore<T> core;
 
 #if UNITY_EDITOR
@@ -47,10 +47,10 @@ namespace Utilities.Async
         }
 
         private CoroutineTaskSource()
-        {
-            coroutineWrapper = new CoroutineWrapper<T>(this);
-            runner = () => AwaiterExtensions.RunCoroutine(coroutineWrapper);
-        }
+            => coroutineWorker = new CoroutineWorker<T>(this);
+
+        ~CoroutineTaskSource()
+            => coroutineWorker.Dispose();
 
         public static CoroutineTaskSource<T> Rent(IEnumerator instruction)
         {
@@ -65,7 +65,7 @@ namespace Utilities.Async
             }
 
             work.core.Reset();
-            work.coroutineWrapper.Initialize(instruction);
+            work.coroutineWorker.Initialize(instruction);
 #if UNITY_EDITOR
             try
             {
@@ -75,18 +75,16 @@ namespace Utilities.Async
             }
             catch (InvalidOperationException)
             {
-                work.coroutineWrapper.Cancel();
+                work.coroutineWorker.Reset();
                 work.core.SetException(new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage));
             }
 #endif
-
-            SyncContextUtility.RunOnUnityThread(work.runner);
             return work;
         }
 
         public static void Return(CoroutineTaskSource<T> taskSource)
         {
-            taskSource.coroutineWrapper.Cancel();
+            taskSource.coroutineWorker.Reset();
 #if UNITY_EDITOR
             taskSource.editorCancellationRegistration?.Dispose();
             taskSource.editorCancellationRegistration = null;
@@ -167,7 +165,7 @@ namespace Utilities.Async
 
             if (!IsComplete)
             {
-                coroutineWrapper.Cancel();
+                coroutineWorker.Reset();
                 core.SetException(new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage));
             }
         }

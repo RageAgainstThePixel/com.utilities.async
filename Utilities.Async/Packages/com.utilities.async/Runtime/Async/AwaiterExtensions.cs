@@ -30,6 +30,10 @@ using UnityEngine;
 using UnityEngine.Scripting;
 using Object = UnityEngine.Object;
 
+#if UNITY_EDITOR
+using Unity.EditorCoroutines.Editor;
+#endif
+
 namespace Utilities.Async
 {
     /// <summary>
@@ -309,7 +313,7 @@ namespace Utilities.Async
             => new(coroutine);
 
         [Preserve]
-        internal static void RunCoroutine(IEnumerator enumerator)
+        internal static CoroutineWrapper RunCoroutine(IEnumerator enumerator)
         {
             if (Application.isPlaying)
             {
@@ -327,18 +331,44 @@ namespace Utilities.Async
                     coroutineRunner = go.TryGetComponent<CoroutineRunner>(out var runner) ? runner : go.AddComponent<CoroutineRunner>();
                 }
 
-                coroutineRunner.StartCoroutine(enumerator);
+                return new CoroutineWrapper(coroutineRunner.StartCoroutine(enumerator));
             }
-            else
-            {
+
 #if UNITY_EDITOR
-                Unity.EditorCoroutines.Editor.EditorCoroutineUtility.StartCoroutineOwnerless(enumerator);
+            return new CoroutineWrapper(EditorCoroutineUtility.StartCoroutineOwnerless(enumerator));
 #else
-                throw new Exception(nameof(CoroutineRunner));
+            throw new Exception(nameof(CoroutineRunner));
+#endif
+        }
+
+        internal static void StopCoroutine(this CoroutineWrapper wrapper)
+        {
+            switch (wrapper.Coroutine)
+            {
+                case Coroutine coroutine:
+                    coroutine.StopCoroutine();
+                    break;
+#if UNITY_EDITOR
+                case EditorCoroutine editorCoroutine:
+                    editorCoroutine.StopCoroutine();
+                    break;
 #endif
             }
         }
 
+        [Preserve]
+        internal static void StopCoroutine(this Coroutine coroutine)
+        {
+            if (Application.isPlaying)
+            {
+                coroutineRunner.StopCoroutine(coroutine);
+            }
+        }
+
+#if UNITY_EDITOR
+        internal static void StopCoroutine(this EditorCoroutine editorCoroutine)
+            => EditorCoroutineUtility.StopCoroutine(editorCoroutine);
+#endif
         [Preserve]
         private static MonoBehaviour coroutineRunner;
 

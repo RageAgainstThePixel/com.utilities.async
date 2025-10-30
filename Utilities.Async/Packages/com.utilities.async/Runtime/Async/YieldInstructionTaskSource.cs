@@ -14,8 +14,7 @@ namespace Utilities.Async
     {
         private static readonly ConcurrentQueue<YieldInstructionTaskSource<T>> pool = new();
 
-        private readonly Action runner;
-        private readonly YieldInstructionWrapper<T> instructionWrapper;
+        private readonly YieldInstructionWorker<T> instructionWorker;
         private ManualResetValueTaskSourceCore<T> core;
 
         internal short Version => core.Version;
@@ -41,10 +40,10 @@ namespace Utilities.Async
 #endif
 
         private YieldInstructionTaskSource()
-        {
-            instructionWrapper = new YieldInstructionWrapper<T>(this);
-            runner = () => AwaiterExtensions.RunCoroutine(instructionWrapper);
-        }
+            => instructionWorker = new YieldInstructionWorker<T>(this);
+
+        ~YieldInstructionTaskSource()
+            => instructionWorker.Dispose();
 
         public static YieldInstructionTaskSource<T> Rent(object instruction)
         {
@@ -59,7 +58,7 @@ namespace Utilities.Async
             }
 
             work.core.Reset();
-            work.instructionWrapper.Initialize(instruction);
+            work.instructionWorker.Initialize(instruction);
 #if UNITY_EDITOR
             try
             {
@@ -69,18 +68,16 @@ namespace Utilities.Async
             }
             catch (InvalidOperationException)
             {
-                work.instructionWrapper.Cancel();
+                work.instructionWorker.Reset();
                 work.core.SetException(new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage));
             }
 #endif
-
-            SyncContextUtility.RunOnUnityThread(work.runner);
             return work;
         }
 
         public static void Return(YieldInstructionTaskSource<T> taskSource)
         {
-            taskSource.instructionWrapper.Cancel();
+            taskSource.instructionWorker.Reset();
 #if UNITY_EDITOR
             taskSource.editorCancellationRegistration?.Dispose();
             taskSource.editorCancellationRegistration = null;
@@ -137,7 +134,7 @@ namespace Utilities.Async
 
             if (!IsCompleted)
             {
-                instructionWrapper.Cancel();
+                instructionWorker.Reset();
                 core.SetException(new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage));
             }
         }
