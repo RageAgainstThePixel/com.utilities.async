@@ -82,6 +82,8 @@ namespace Utilities.Async
                 work.result = default;
                 work.exception = new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage);
                 work.status = ValueTaskSourceStatus.Canceled;
+                work.InvokeContinuation();
+                return work;
             }
 #endif
 

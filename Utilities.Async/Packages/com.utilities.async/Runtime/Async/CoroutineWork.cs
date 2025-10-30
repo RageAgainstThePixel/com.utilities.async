@@ -169,6 +169,13 @@ namespace Utilities.Async
             SyncContextUtility.ScheduleContinuation(cont, state);
         }
 
+        internal void FailWithException(Exception e)
+        {
+            exception = e;
+            status = ValueTaskSourceStatus.Faulted;
+            InvokeContinuation();
+        }
+
         ValueTaskSourceStatus IValueTaskSource<T>.GetStatus(short token)
         {
             ValidateToken(token);
