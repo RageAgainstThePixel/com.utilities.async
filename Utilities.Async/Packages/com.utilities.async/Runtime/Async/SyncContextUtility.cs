@@ -85,11 +85,19 @@ namespace Utilities.Async
 
         private static void SendOrPostCallback(object state)
         {
-            if (!IsMainThread) { return; }
+            if (!IsMainThread)
+            {
+                Debug.LogError($"{nameof(SendOrPostCallback)}::Failed to post on main thread!");
+                return;
+            }
 
             if (state is Action action)
             {
                 action.Invoke();
+            }
+            else
+            {
+                Debug.LogError($"{nameof(SendOrPostCallback)}::state is not an {nameof(Action)}!");
             }
         }
 
@@ -105,19 +113,32 @@ namespace Utilities.Async
             }
         }
 
-        private static readonly SendOrPostCallback continuationCallback = static payload =>
-        {
-            var continuation = (ContinuationPayload)payload;
+        private static readonly SendOrPostCallback continuationCallback = ContinuationCallback;
 
-            try
+        private static void ContinuationCallback(object payload)
+        {
+            if (!IsMainThread)
             {
-                continuation.Action(continuation.State);
+                Debug.LogError($"{nameof(SendOrPostCallback)}::Failed to post on main thread!");
+                return;
             }
-            finally
+
+            if (payload is ContinuationPayload continuation)
             {
-                ContinuationPayload.Return(continuation);
+                try
+                {
+                    continuation.Action(continuation.State);
+                }
+                finally
+                {
+                    ContinuationPayload.Return(continuation);
+                }
             }
-        };
+            else
+            {
+                Debug.LogError($"{nameof(ContinuationCallback)}::payload is not a {nameof(ContinuationPayload)}!");
+            }
+        }
 
         internal static void ScheduleContinuation(Action<object> continuation, object state)
         {
