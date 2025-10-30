@@ -52,7 +52,6 @@ namespace Utilities.Async
                 if (processStack.Count == 0)
                 {
                     current = null;
-
                     return true;
                 }
 
@@ -60,7 +59,6 @@ namespace Utilities.Async
                 {
                     processStack.Clear();
                     current = null;
-
                     return true;
                 }
 
@@ -86,7 +84,6 @@ namespace Utilities.Async
                     processStack.Clear();
                     taskSource.FailWithException(wrappedException);
                     current = null;
-
                     return true;
                 }
 
@@ -108,13 +105,11 @@ namespace Utilities.Async
                 if (topWorker.Current is IEnumerator item)
                 {
                     processStack.Push(item);
-
                     continue;
                 }
 
                 // Otherwise yield the current value to Unity's coroutine runner
                 current = topWorker.Current;
-
                 return true;
             }
         }
