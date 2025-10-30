@@ -65,7 +65,7 @@ namespace Utilities.Async
                     break;
 #if !UNITY_2023_1_OR_NEWER
                 case AsyncOperation asyncOperation:
-                    work.CompleteWork(asyncOperation);
+                    taskSource.CompleteWork(asyncOperation);
                     break;
 #endif
                 default:
