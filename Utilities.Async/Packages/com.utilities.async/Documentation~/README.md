@@ -177,7 +177,8 @@ public class ExampleAsyncScript : MonoBehaviour
 
     private async Task MyFunctionAsync(CancellationToken cancellationToken)
     {
-        await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
+        // similar to Task.Delay(1000)
+        await Awaiters.DelayAsync(1000).ConfigureAwait(false);
     }
 
     private IEnumerator MyEnumerableFunction()
@@ -192,7 +193,7 @@ public class ExampleAsyncScript : MonoBehaviour
 
 The package includes a demo sample and unit tests to demonstrate typical usage and to verify main-thread/background-thread behavior:
 
-- Sample: `Packages/com.utilities.async/Samples~/Demo/ExampleAsyncScript.cs` — demonstrates `Awaiters.UnityMainThread`, `Awaiters.BackgroundThread`, awaiting yield instructions, and `.WithProgress().WithCancellation()` patterns.
+- Sample: `Demo/ExampleAsyncScript.cs` — demonstrates `Awaiters.UnityMainThread`, `Awaiters.BackgroundThread`, awaiting yield instructions, and `.WithProgress().WithCancellation()` patterns.
 - Tests: `Packages/com.utilities.async/Tests/TestFixture_01.cs` — Unity test example that exercises Awaiters and coroutine awaiting.
 
 Run the sample in the Unity editor or run the tests with the Unity Test Runner to validate behavior in your environment.
