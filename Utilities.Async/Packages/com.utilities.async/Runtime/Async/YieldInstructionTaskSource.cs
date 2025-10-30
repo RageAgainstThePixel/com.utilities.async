@@ -36,8 +36,8 @@ namespace Utilities.Async
         }
 
 #if UNITY_EDITOR
-        private IDisposable editorCancellationRegistration;
         private bool editorCancellationTriggered;
+        private EditorPlayModeCancellation.Registration? editorCancellationRegistration;
 #endif
 
         private YieldInstructionTaskSource()
@@ -118,7 +118,14 @@ namespace Utilities.Async
             => core.GetResult(token);
 
         void IValueTaskSource<T>.OnCompleted(Action<object> completedContinuation, object state, short token, ValueTaskSourceOnCompletedFlags flags)
-            => core.OnCompleted(completedContinuation, state, token, flags);
+        {
+            if ((flags & ValueTaskSourceOnCompletedFlags.UseSchedulingContext) != 0 && SyncContextUtility.IsMainThread)
+            {
+                flags &= ~ValueTaskSourceOnCompletedFlags.UseSchedulingContext;
+            }
+
+            core.OnCompleted(completedContinuation, state, token, flags);
+        }
 
 #if UNITY_EDITOR
         void IEditorCancelable.CancelFromEditor()

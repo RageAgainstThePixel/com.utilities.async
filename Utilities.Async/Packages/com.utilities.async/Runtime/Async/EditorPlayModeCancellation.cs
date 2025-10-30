@@ -23,7 +23,6 @@ namespace Utilities.Async
                 lock (gate)
                 {
                     CurrentPlayModeState = state;
-                    // Debug.Log(state);
                     switch (state)
                     {
                         case PlayModeStateChange.ExitingEditMode:
@@ -35,7 +34,7 @@ namespace Utilities.Async
             };
         }
 
-        public static IDisposable Register(IEditorCancelable cancelable)
+        public static Registration Register(IEditorCancelable cancelable)
         {
             if (cancelable == null)
             {
@@ -59,31 +58,32 @@ namespace Utilities.Async
 
         private static void CancelAll()
         {
-            IEditorCancelable[] snapshot;
-
             lock (gate)
             {
                 if (activeRegistrations.Count == 0) { return; }
-                snapshot = new IEditorCancelable[activeRegistrations.Count];
-                activeRegistrations.CopyTo(snapshot);
-            }
 
-            foreach (var registration in snapshot)
-            {
-                try
+                var activeRegistrationsCopy = new List<IEditorCancelable>(activeRegistrations);
+
+                foreach (var registration in activeRegistrationsCopy)
                 {
-                    registration?.CancelFromEditor();
+                    try
+                    {
+                        registration?.CancelFromEditor();
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogException(e);
+                    }
                 }
-                catch (Exception e)
-                {
-                    Debug.LogException(e);
-                }
+
+                activeRegistrationsCopy.Clear();
+                activeRegistrations.Clear();
             }
         }
 
-        private sealed class Registration : IDisposable
+        internal readonly struct Registration : IDisposable
         {
-            private IEditorCancelable cancelable;
+            private readonly IEditorCancelable cancelable;
 
             public Registration(IEditorCancelable value)
                 => cancelable = value;
@@ -96,10 +96,8 @@ namespace Utilities.Async
                 {
                     activeRegistrations.Remove(cancelable);
                 }
-
-                cancelable = null;
             }
         }
     }
 }
-#endif
+#endif // UNITY_EDITOR
