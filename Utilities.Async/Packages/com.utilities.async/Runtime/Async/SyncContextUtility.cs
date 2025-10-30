@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using UnityEngine;
 
@@ -82,9 +83,11 @@ namespace Utilities.Async
         public static bool IsMainThread
             => UnityThreadId == Thread.CurrentThread.ManagedThreadId;
 
-        private static SendOrPostCallback postCallback = SendOrPostCallback;
+        private static readonly SendOrPostCallback postCallback = SendOrPostCallback;
 
-        private static void SendOrPostCallback(object state)
+        private static readonly ConcurrentQueue<object> actionQueue = new();
+
+        private static void SendOrPostCallback(object @null)
         {
             if (!IsMainThread)
             {
@@ -92,31 +95,62 @@ namespace Utilities.Async
                 return;
             }
 
-            if (state is Action action)
+            try
             {
-                action.Invoke();
+                while (actionQueue.TryDequeue(out var state))
+                {
+                    if (state is ActionPayload payload)
+                    {
+                        try
+                        {
+                            payload.Action.Invoke();
+                        }
+                        finally
+                        {
+                            ActionPayload.Return(payload);
+                        }
+                    }
+                    else if (state is Action action)
+                    {
+                        action.Invoke();
+                    }
+                    else
+                    {
+                        Debug.LogError($"{nameof(SendOrPostCallback)}::state is not an {nameof(Action)} or {nameof(ActionPayload)}!");
+                    }
+                }
             }
-            else
+            catch (Exception e)
             {
-                Debug.LogError($"{nameof(SendOrPostCallback)}::state is not an {nameof(Action)}!");
+                Debug.LogException(e);
             }
         }
 
         public static void RunOnUnityThread(Action callback)
         {
-            if (IsMainThread)
+            try
             {
-                callback.Invoke();
+                if (IsMainThread)
+                {
+                    callback.Invoke();
+                }
+                else
+                {
+                    actionQueue.Enqueue(ActionPayload.Rent(callback));
+                    UnitySynchronizationContext.Post(postCallback, null);
+                }
             }
-            else
+            catch (Exception e)
             {
-                UnitySynchronizationContext.Post(postCallback, callback);
+                Debug.LogException(e);
             }
         }
 
         private static readonly SendOrPostCallback continuationCallback = ContinuationCallback;
 
-        private static void ContinuationCallback(object payload)
+        private static readonly ConcurrentQueue<object> continuationQueue = new();
+
+        private static void ContinuationCallback(object @null)
         {
             if (!IsMainThread)
             {
@@ -124,33 +158,54 @@ namespace Utilities.Async
                 return;
             }
 
-            if (payload is ContinuationPayload continuation)
+            try
             {
-                try
+                while (continuationQueue.Count > 0)
                 {
-                    continuation.Action(continuation.State);
-                }
-                finally
-                {
-                    ContinuationPayload.Return(continuation);
+                    if (continuationQueue.TryPeek(out _) &&
+                       continuationQueue.TryDequeue(out var payload))
+                    {
+                        if (payload is ContinuationPayload continuation)
+                        {
+                            try
+                            {
+                                continuation.Action(continuation.State);
+                            }
+                            finally
+                            {
+                                ContinuationPayload.Return(continuation);
+                            }
+                        }
+                        else
+                        {
+                            Debug.LogError($"{nameof(ContinuationCallback)}::payload is not a {nameof(ContinuationPayload)}!");
+                        }
+                    }
                 }
             }
-            else
+            catch (Exception e)
             {
-                Debug.LogError($"{nameof(ContinuationCallback)}::payload is not a {nameof(ContinuationPayload)}!");
+                Debug.LogException(e);
             }
         }
 
         internal static void ScheduleContinuation(Action<object> continuation, object state)
         {
-            if (IsMainThread)
+            try
             {
-                continuation(state);
+                if (IsMainThread)
+                {
+                    continuation(state);
+                }
+                else
+                {
+                    continuationQueue.Enqueue(ContinuationPayload.Rent(continuation, state));
+                    UnitySynchronizationContext.Post(continuationCallback, null);
+                }
             }
-            else
+            catch (Exception e)
             {
-                var payload = ContinuationPayload.Rent(continuation, state);
-                UnitySynchronizationContext.Post(continuationCallback, payload);
+                Debug.LogException(e);
             }
         }
     }

@@ -151,12 +151,6 @@ namespace Utilities.Async
         {
             ValidateToken(token);
 
-            // Prevent synchronous blocking waits on the Unity main thread which would cause a deadlock
-            if (SyncContextUtility.IsMainThread)
-            {
-                throw new InvalidOperationException("Synchronous wait on the Unity main thread is not supported for yield-instruction awaiters. Use 'await' instead to avoid deadlocks.");
-            }
-
             if (status == ValueTaskSourceStatus.Pending)
             {
                 throw new InvalidOperationException("Operation has not completed yet.");
