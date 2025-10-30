@@ -2,8 +2,6 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Runtime.ExceptionServices;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Sources;
 
@@ -18,16 +16,24 @@ namespace Utilities.Async
 
         private readonly Action runner;
         private readonly YieldInstructionWrapper<T> instructionWrapper;
+        private ManualResetValueTaskSourceCore<T> core;
 
-        private Action<object> continuation;
-        private object continuationState;
-        private volatile ValueTaskSourceStatus status;
-        private Exception exception;
-        private T result;
+        internal short Version => core.Version;
 
-        internal short Version { get; private set; }
+        internal bool IsCompleted
+        {
+            get
+            {
+                var version = Version;
 
-        internal bool IsCompleted => status != ValueTaskSourceStatus.Pending;
+                if (version == 0)
+                {
+                    return false;
+                }
+
+                return core.GetStatus(version) != ValueTaskSourceStatus.Pending;
+            }
+        }
 
 #if UNITY_EDITOR
         private IDisposable editorCancellationRegistration;
@@ -38,8 +44,6 @@ namespace Utilities.Async
         {
             instructionWrapper = new YieldInstructionWrapper<T>(this);
             runner = () => AwaiterExtensions.RunCoroutine(instructionWrapper);
-            status = ValueTaskSourceStatus.Pending;
-            Version = 0;
         }
 
         public static YieldInstructionTaskSource<T> Rent(object instruction)
@@ -54,22 +58,7 @@ namespace Utilities.Async
                 work = new YieldInstructionTaskSource<T>();
             }
 
-            work.status = ValueTaskSourceStatus.Pending;
-            work.exception = null;
-            work.result = default;
-            work.continuation = null;
-            work.continuationState = null;
-
-            unchecked
-            {
-                work.Version++;
-            }
-
-            if (work.Version == 0)
-            {
-                work.Version = 1;
-            }
-
+            work.core.Reset();
             work.instructionWrapper.Initialize(instruction);
 #if UNITY_EDITOR
             try
@@ -81,9 +70,7 @@ namespace Utilities.Async
             catch (InvalidOperationException)
             {
                 work.instructionWrapper.Cancel();
-                work.result = default;
-                work.exception = new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage);
-                work.status = ValueTaskSourceStatus.Canceled;
+                work.core.SetException(new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage));
             }
 #endif
 
@@ -93,12 +80,7 @@ namespace Utilities.Async
 
         public static void Return(YieldInstructionTaskSource<T> taskSource)
         {
-            taskSource.result = default;
-            taskSource.exception = null;
-            taskSource.status = ValueTaskSourceStatus.Pending;
-            Interlocked.Exchange(ref taskSource.continuation, null);
-            Volatile.Write(ref taskSource.continuationState, null);
-            taskSource.instructionWrapper.Clear();
+            taskSource.instructionWrapper.Cancel();
 #if UNITY_EDITOR
             taskSource.editorCancellationRegistration?.Dispose();
             taskSource.editorCancellationRegistration = null;
@@ -109,11 +91,14 @@ namespace Utilities.Async
 
         public void CompleteWork(object taskResult)
         {
-            if (status != ValueTaskSourceStatus.Pending) { return; }
+            if (Version != 0 && core.GetStatus(Version) != ValueTaskSourceStatus.Pending)
+            {
+                return;
+            }
 
             try
             {
-                result = taskResult switch
+                var value = taskResult switch
                 {
                     T typedResult => typedResult,
                     null when default(T) is null => default,
@@ -121,103 +106,22 @@ namespace Utilities.Async
                     _ => (T)taskResult
                 };
 
-                status = ValueTaskSourceStatus.Succeeded;
+                core.SetResult(value);
             }
             catch (Exception e)
             {
-                exception = e;
-                status = ValueTaskSourceStatus.Faulted;
+                core.SetException(e);
             }
-
-            InvokeContinuation();
-        }
-
-        private void InvokeContinuation()
-        {
-            var cont = Interlocked.Exchange(ref continuation, null);
-            if (cont == null) { return; }
-            var state = Volatile.Read(ref continuationState);
-            Volatile.Write(ref continuationState, null);
-            SyncContextUtility.ScheduleContinuation(cont, state);
         }
 
         ValueTaskSourceStatus IValueTaskSource<T>.GetStatus(short token)
-        {
-            ValidateToken(token);
-            return status;
-        }
+            => core.GetStatus(token);
 
         T IValueTaskSource<T>.GetResult(short token)
-        {
-            ValidateToken(token);
-
-            if (status == ValueTaskSourceStatus.Pending)
-            {
-                throw new InvalidOperationException("Operation has not completed yet.");
-            }
-
-            if (status == ValueTaskSourceStatus.Canceled)
-            {
-                if (exception is TaskCanceledException tce)
-                {
-                    throw tce;
-                }
-
-                throw new TaskCanceledException();
-            }
-
-            if (exception != null)
-            {
-                ExceptionDispatchInfo.Capture(exception).Throw();
-            }
-
-            return result;
-        }
+            => core.GetResult(token);
 
         void IValueTaskSource<T>.OnCompleted(Action<object> completedContinuation, object state, short token, ValueTaskSourceOnCompletedFlags flags)
-        {
-            ValidateToken(token);
-
-            if (completedContinuation == null)
-            {
-                throw new ArgumentNullException(nameof(completedContinuation));
-            }
-
-            if (status != ValueTaskSourceStatus.Pending)
-            {
-                SyncContextUtility.ScheduleContinuation(completedContinuation, state);
-                return;
-            }
-
-            Volatile.Write(ref continuationState, state);
-            var prev = Interlocked.CompareExchange(ref continuation, completedContinuation, null);
-
-            if (prev != null)
-            {
-                SyncContextUtility.ScheduleContinuation(completedContinuation, state);
-                return;
-            }
-
-            if (status != ValueTaskSourceStatus.Pending)
-            {
-                var c = Interlocked.Exchange(ref continuation, null);
-                var s = Volatile.Read(ref continuationState);
-                Volatile.Write(ref continuationState, null);
-
-                if (c != null)
-                {
-                    SyncContextUtility.ScheduleContinuation(c, s);
-                }
-            }
-        }
-
-        private void ValidateToken(short token)
-        {
-            if (token != Version)
-            {
-                throw new InvalidOperationException("Token does not match the current operation version.");
-            }
-        }
+            => core.OnCompleted(completedContinuation, state, token, flags);
 
 #if UNITY_EDITOR
         void IEditorCancelable.CancelFromEditor()
@@ -227,15 +131,11 @@ namespace Utilities.Async
             editorCancellationRegistration?.Dispose();
             editorCancellationRegistration = null;
 
-            if (status == ValueTaskSourceStatus.Pending)
+            if (Version != 0 && core.GetStatus(Version) == ValueTaskSourceStatus.Pending)
             {
                 instructionWrapper.Cancel();
-                result = default;
-                exception = new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage);
-                status = ValueTaskSourceStatus.Canceled;
+                core.SetException(new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage));
             }
-
-            InvokeContinuation();
         }
 #endif
     }

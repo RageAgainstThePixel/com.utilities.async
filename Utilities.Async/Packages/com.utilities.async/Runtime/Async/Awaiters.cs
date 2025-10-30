@@ -47,12 +47,12 @@ namespace Utilities.Async
         /// Use this awaiter to continue execution on the main thread.
         /// </summary>
         /// <remarks>Brings the execution back to the main thread on the next engine update.</remarks>
-        public static AwaitYieldInstructions.UnityMainThread UnityMainThread { get; } = new();
+        public static UnityMainThread UnityMainThread { get; } = new();
 
         /// <summary>
         /// Use this awaiter to continue execution on the background thread.
         /// </summary>
-        public static AwaitYieldInstructions.BackgroundThread BackgroundThread { get; } = new();
+        public static BackgroundThread BackgroundThread { get; } = new();
 #endif // UNITY_6000_0_OR_NEWER
 
         /// <summary>

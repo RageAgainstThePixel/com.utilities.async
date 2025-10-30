@@ -30,10 +30,6 @@ using UnityEngine;
 using UnityEngine.Scripting;
 using Object = UnityEngine.Object;
 
-#if !UNITY_6000_0_OR_NEWER
-using Utilities.Async.AwaitYieldInstructions;
-#endif
-
 namespace Utilities.Async
 {
     /// <summary>

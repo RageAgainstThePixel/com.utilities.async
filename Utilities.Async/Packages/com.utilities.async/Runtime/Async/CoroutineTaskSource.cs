@@ -3,8 +3,6 @@
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
-using System.Runtime.ExceptionServices;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Sources;
 
@@ -24,28 +22,34 @@ namespace Utilities.Async
 
         private readonly Action runner;
         private readonly CoroutineWrapper<T> coroutineWrapper;
+        private ManualResetValueTaskSourceCore<T> core;
 
 #if UNITY_EDITOR
         private IDisposable editorCancellationRegistration;
         private bool editorCancellationTriggered;
 #endif
 
-        private Action<object> continuation;
-        private object continuationState;
-        private volatile ValueTaskSourceStatus status;
-        private Exception exception;
-        private T result;
+        internal short Version => core.Version;
 
-        internal short Version { get; private set; }
+        internal bool IsComplete
+        {
+            get
+            {
+                var version = Version;
 
-        internal bool IsComplete => status != ValueTaskSourceStatus.Pending;
+                if (version == 0)
+                {
+                    return false;
+                }
+
+                return core.GetStatus(version) != ValueTaskSourceStatus.Pending;
+            }
+        }
 
         private CoroutineTaskSource()
         {
             coroutineWrapper = new CoroutineWrapper<T>(this);
             runner = () => AwaiterExtensions.RunCoroutine(coroutineWrapper);
-            status = ValueTaskSourceStatus.Pending;
-            Version = 0;
         }
 
         public static CoroutineTaskSource<T> Rent(IEnumerator instruction)
@@ -60,22 +64,7 @@ namespace Utilities.Async
                 work = new CoroutineTaskSource<T>();
             }
 
-            work.status = ValueTaskSourceStatus.Pending;
-            work.exception = null;
-            work.result = default;
-            work.continuation = null;
-            work.continuationState = null;
-
-            unchecked
-            {
-                work.Version++;
-            }
-
-            if (work.Version == 0)
-            {
-                work.Version = 1;
-            }
-
+            work.core.Reset();
             work.coroutineWrapper.Initialize(instruction);
 #if UNITY_EDITOR
             try
@@ -86,8 +75,8 @@ namespace Utilities.Async
             }
             catch (InvalidOperationException)
             {
-                work.exception = new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage);
-                work.status = ValueTaskSourceStatus.Canceled;
+                work.coroutineWrapper.Cancel();
+                work.core.SetException(new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage));
             }
 #endif
 
@@ -97,12 +86,7 @@ namespace Utilities.Async
 
         public static void Return(CoroutineTaskSource<T> taskSource)
         {
-            taskSource.result = default;
-            taskSource.exception = null;
-            taskSource.status = ValueTaskSourceStatus.Pending;
-            Interlocked.Exchange(ref taskSource.continuation, null);
-            Volatile.Write(ref taskSource.continuationState, null);
-            taskSource.coroutineWrapper.Clear();
+            taskSource.coroutineWrapper.Cancel();
 #if UNITY_EDITOR
             taskSource.editorCancellationRegistration?.Dispose();
             taskSource.editorCancellationRegistration = null;
@@ -113,17 +97,22 @@ namespace Utilities.Async
 
         public void CompleteWork(object taskResult)
         {
-            if (status != ValueTaskSourceStatus.Pending) { return; }
+            if (Version != 0 && core.GetStatus(Version) != ValueTaskSourceStatus.Pending)
+            {
+                return;
+            }
 
             try
             {
+                T value;
+
                 switch (taskResult)
                 {
 #if UNITY_ADDRESSABLES
                     case AsyncOperationHandle operationHandle:
                         if (operationHandle.IsValid())
                         {
-                            result = (T)operationHandle.Result;
+                            value = (T)operationHandle.Result;
                         }
 
                         operationHandle.TryThrowException();
@@ -131,128 +120,50 @@ namespace Utilities.Async
                     case AsyncOperationHandle<T> operationHandle:
                         if (operationHandle.IsValid())
                         {
-                            result = operationHandle.Result;
+                            value = operationHandle.Result;
                         }
 
                         operationHandle.TryThrowException();
                         break;
 #endif // UNITY_ADDRESSABLES
                     case T typedResult:
-                        result = typedResult;
+                        value = typedResult;
                         break;
                     case null when default(T) is null:
-                        result = default;
+                        value = default;
                         break;
                     default:
                         // ReSharper disable once PossibleInvalidCastException
-                        result = (T)taskResult;
+                        value = (T)taskResult;
                         break;
                 }
 
-                status = ValueTaskSourceStatus.Succeeded;
+                core.SetResult(value);
             }
             catch (Exception e)
             {
-                exception = e;
-                status = ValueTaskSourceStatus.Faulted;
+                core.SetException(e);
             }
-
-            InvokeContinuation();
-        }
-
-        private void InvokeContinuation()
-        {
-            var cont = Interlocked.Exchange(ref continuation, null);
-            if (cont == null) { return; }
-            var state = Volatile.Read(ref continuationState);
-            Volatile.Write(ref continuationState, null);
-            SyncContextUtility.ScheduleContinuation(cont, state);
         }
 
         internal void FailWithException(Exception e)
         {
-            exception = e;
-            status = ValueTaskSourceStatus.Faulted;
-            InvokeContinuation();
+            if (Version != 0 && core.GetStatus(Version) != ValueTaskSourceStatus.Pending)
+            {
+                return;
+            }
+
+            core.SetException(e);
         }
 
         ValueTaskSourceStatus IValueTaskSource<T>.GetStatus(short token)
-        {
-            ValidateToken(token);
-            return status;
-        }
+            => core.GetStatus(token);
 
         T IValueTaskSource<T>.GetResult(short token)
-        {
-            ValidateToken(token);
-
-            if (status == ValueTaskSourceStatus.Pending)
-            {
-                throw new InvalidOperationException("Operation has not completed yet.");
-            }
-
-            if (status == ValueTaskSourceStatus.Canceled)
-            {
-                if (exception is TaskCanceledException tce)
-                {
-                    throw tce;
-                }
-
-                throw new TaskCanceledException();
-            }
-
-            if (exception != null)
-            {
-                ExceptionDispatchInfo.Capture(exception).Throw();
-            }
-
-            return result;
-        }
+            => core.GetResult(token);
 
         void IValueTaskSource<T>.OnCompleted(Action<object> completedContinuation, object state, short token, ValueTaskSourceOnCompletedFlags flags)
-        {
-            ValidateToken(token);
-
-            if (completedContinuation == null)
-            {
-                throw new ArgumentNullException(nameof(completedContinuation));
-            }
-
-            if (status != ValueTaskSourceStatus.Pending)
-            {
-                SyncContextUtility.ScheduleContinuation(completedContinuation, state);
-                return;
-            }
-
-            Volatile.Write(ref continuationState, state);
-            var prev = Interlocked.CompareExchange(ref continuation, completedContinuation, null);
-
-            if (prev != null)
-            {
-                SyncContextUtility.ScheduleContinuation(completedContinuation, state);
-                return;
-            }
-
-            if (status != ValueTaskSourceStatus.Pending)
-            {
-                var c = Interlocked.Exchange(ref continuation, null);
-                var s = Volatile.Read(ref continuationState);
-                Volatile.Write(ref continuationState, null);
-
-                if (c != null)
-                {
-                    SyncContextUtility.ScheduleContinuation(c, s);
-                }
-            }
-        }
-
-        private void ValidateToken(short token)
-        {
-            if (token != Version)
-            {
-                throw new InvalidOperationException("Token does not match the current operation version.");
-            }
-        }
+            => core.OnCompleted(completedContinuation, state, token, flags);
 
 #if UNITY_EDITOR
         void IEditorCancelable.CancelFromEditor()
@@ -262,15 +173,11 @@ namespace Utilities.Async
             editorCancellationRegistration?.Dispose();
             editorCancellationRegistration = null;
 
-            if (status == ValueTaskSourceStatus.Pending)
+            if (Version != 0 && core.GetStatus(Version) == ValueTaskSourceStatus.Pending)
             {
                 coroutineWrapper.Cancel();
-                result = default;
-                exception = new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage);
-                status = ValueTaskSourceStatus.Canceled;
+                core.SetException(new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage));
             }
-
-            InvokeContinuation();
         }
 #endif
     }

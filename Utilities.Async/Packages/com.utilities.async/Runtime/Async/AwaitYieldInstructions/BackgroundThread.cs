@@ -30,7 +30,7 @@ using System.Threading.Tasks;
 
 #endif
 
-namespace Utilities.Async.AwaitYieldInstructions
+namespace Utilities.Async
 {
     /// <summary>
     /// Helper class for continuing executions on a background thread.

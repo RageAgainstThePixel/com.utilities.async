@@ -83,12 +83,6 @@ namespace Utilities.Async
             Current = null;
         }
 
-        public void Clear()
-        {
-            processStack.Clear();
-            Current = null;
-        }
-
         public void Cancel()
         {
             // Stop further processing by clearing the stack and current value.
