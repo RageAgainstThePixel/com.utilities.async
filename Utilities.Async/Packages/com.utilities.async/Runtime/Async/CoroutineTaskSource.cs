@@ -97,14 +97,11 @@ namespace Utilities.Async
 
         public void CompleteWork(object taskResult)
         {
-            if (Version != 0 && core.GetStatus(Version) != ValueTaskSourceStatus.Pending)
-            {
-                return;
-            }
+            if (IsComplete) { return; }
 
             try
             {
-                T value;
+                T value = default;
 
                 switch (taskResult)
                 {
@@ -148,11 +145,7 @@ namespace Utilities.Async
 
         internal void FailWithException(Exception e)
         {
-            if (Version != 0 && core.GetStatus(Version) != ValueTaskSourceStatus.Pending)
-            {
-                return;
-            }
-
+            if (IsComplete) { return; }
             core.SetException(e);
         }
 
@@ -173,7 +166,7 @@ namespace Utilities.Async
             editorCancellationRegistration?.Dispose();
             editorCancellationRegistration = null;
 
-            if (Version != 0 && core.GetStatus(Version) == ValueTaskSourceStatus.Pending)
+            if (!IsComplete)
             {
                 coroutineWrapper.Cancel();
                 core.SetException(new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage));

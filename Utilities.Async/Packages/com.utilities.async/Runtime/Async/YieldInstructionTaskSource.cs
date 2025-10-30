@@ -91,10 +91,7 @@ namespace Utilities.Async
 
         public void CompleteWork(object taskResult)
         {
-            if (Version != 0 && core.GetStatus(Version) != ValueTaskSourceStatus.Pending)
-            {
-                return;
-            }
+            if (IsCompleted) { return; }
 
             try
             {
@@ -131,7 +128,7 @@ namespace Utilities.Async
             editorCancellationRegistration?.Dispose();
             editorCancellationRegistration = null;
 
-            if (Version != 0 && core.GetStatus(Version) == ValueTaskSourceStatus.Pending)
+            if (!IsCompleted)
             {
                 instructionWrapper.Cancel();
                 core.SetException(new TaskCanceledException(EditorPlayModeCancellation.CancellationMessage));
