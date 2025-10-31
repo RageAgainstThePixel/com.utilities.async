@@ -4,12 +4,9 @@ using NUnit.Framework;
 using System;
 using System.Collections;
 using System.Diagnostics;
-using System.Threading;
 using System.Threading.Tasks;
 using Unity.EditorCoroutines.Editor;
 using UnityEngine.TestTools;
-using Utilities.Async.AwaitYieldInstructions;
-using Utilities.Async.Internal;
 using Debug = UnityEngine.Debug;
 
 namespace Utilities.Async.Tests
@@ -46,14 +43,14 @@ namespace Utilities.Async.Tests
             // Get back to the main unity thread
             await Awaiters.UnityMainThread;
             isMainThread = SyncContextUtility.IsMainThread;
-            Debug.Log($"{nameof(UnityMainThread)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
+            Debug.Log($"{nameof(Awaiters.UnityMainThread)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
             Assert.IsTrue(isMainThread);
 
             // switch to background thread to do a long
             // running process on background thread
             await Awaiters.BackgroundThread;
             isMainThread = SyncContextUtility.IsMainThread;
-            Debug.Log($"{nameof(BackgroundThread)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
+            Debug.Log($"{nameof(Awaiters.BackgroundThread)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
             Assert.IsFalse(isMainThread);
 
             Action backgroundInvokedAction = BackgroundInvokedAction;
@@ -61,7 +58,7 @@ namespace Utilities.Async.Tests
 
             // should still be on background thread.
             isMainThread = SyncContextUtility.IsMainThread;
-            Debug.Log($"{nameof(BackgroundThread)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
+            Debug.Log($"{nameof(Awaiters.BackgroundThread)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
             Assert.IsFalse(isMainThread);
 
             // await on IEnumerator functions as well

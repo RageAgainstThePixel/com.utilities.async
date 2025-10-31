@@ -11,6 +11,6 @@ namespace Utilities.Async
         /// </summary>
         /// <param name="action">The action to invoke.</param>
         public static void InvokeOnMainThread(this Action action)
-            => AwaiterExtensions.RunOnUnityScheduler(action);
+            => SyncContextUtility.RunOnUnityThread(action);
     }
 }

@@ -22,7 +22,7 @@
 
 using UnityEngine;
 
-namespace Utilities.Async.AwaitYieldInstructions
+namespace Utilities.Async
 {
     /// <summary>
     /// This can be used as a way to return to the main unity thread

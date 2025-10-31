@@ -1,0 +1,78 @@
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
+using JetBrains.Annotations;
+using System;
+using System.Collections;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+
+namespace Utilities.Async
+{
+    public readonly struct CoroutineAwaiter : ICriticalNotifyCompletion, IAwaiter
+    {
+        private readonly CoroutineTaskSource<object> taskSource;
+        private readonly ValueTaskAwaiter<object> awaiter;
+
+        public CoroutineAwaiter(IEnumerator instruction)
+        {
+            taskSource = CoroutineTaskSource<object>.Rent(instruction);
+            awaiter = new ValueTask<object>(taskSource, taskSource.Version).GetAwaiter();
+        }
+
+        public bool IsCompleted => awaiter.IsCompleted;
+
+        public void OnCompleted(Action continuation)
+            => awaiter.OnCompleted(continuation);
+
+        public void UnsafeOnCompleted(Action continuation)
+            => awaiter.UnsafeOnCompleted(continuation);
+
+        [UsedImplicitly]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public object GetResult()
+        {
+            try
+            {
+                return awaiter.GetResult();
+            }
+            finally
+            {
+                CoroutineTaskSource<object>.Return(taskSource);
+            }
+        }
+    }
+
+    public readonly struct CoroutineAwaiter<T> : ICriticalNotifyCompletion, IAwaiter
+    {
+        private readonly CoroutineTaskSource<T> taskSource;
+        private readonly ValueTaskAwaiter<T> awaiter;
+
+        public CoroutineAwaiter(IEnumerator instruction)
+        {
+            taskSource = CoroutineTaskSource<T>.Rent(instruction);
+            awaiter = new ValueTask<T>(taskSource, taskSource.Version).GetAwaiter();
+        }
+
+        public bool IsCompleted => awaiter.IsCompleted;
+
+        public void OnCompleted(Action continuation)
+            => awaiter.OnCompleted(continuation);
+
+        public void UnsafeOnCompleted(Action continuation)
+            => awaiter.UnsafeOnCompleted(continuation);
+
+        [UsedImplicitly]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T GetResult()
+        {
+            try
+            {
+                return awaiter.GetResult();
+            }
+            finally
+            {
+                CoroutineTaskSource<T>.Return(taskSource);
+            }
+        }
+    }
+}
