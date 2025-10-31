@@ -45,7 +45,65 @@ openupm add com.utilities.async
 
 ## Documentation
 
-### Example
+### Table of Contents
+
+- [Unity 6 Support](#how-does-it-compare-to-awaitables-in-unity-6)
+- [Implementation](#implementation)
+  - [Addressables](#addressables)
+  - [Editor Behavior](#editor-behavior)
+  - [WebGL Support](#webgl-support)
+- [Samples & Tests](#samples--tests)
+
+### How does it compare to Awaitables in Unity 6?
+
+[Unity 6 introduced Awaitables](https://docs.unity3d.com/6000.2/Documentation/Manual/async-await-support.html) in UnityEngine, which provide similar functionality to Utilities.Async.
+Where possible, it is recommended to use the built-in Unity Awaitables for new projects, as they are officially supported and maintained by Unity.
+
+> [!WARNING]
+> Be aware that unity's built-in [`Awaitable.UnityMainThread`](https://docs.unity3d.com/6000.2/Documentation/Manual/async-awaitable-continuations.html) could potentially lead to deadlocks in certain scenarios, especially when used in combination with other async code that also tries to marshal back to the main thread. Always test thoroughly when using Awaitable.UnityMainThread in complex async workflows.
+
+### Implementation
+
+This package implements coroutine and yield-instruction awaiters with a focus on low allocations and Unity-compatible threading semantics.
+
+- Awaiters for coroutines and yield instructions are built on top of ValueTask-compatible sources (`IValueTaskSource<T>`) and use internal pooling (e.g. `CoroutineTaskSource<T>`, `YieldInstructionTaskSource<T>`) to reduce GC pressure when awaiting many operations.
+- Exceptions thrown from nested IEnumerator/coroutine stacks are captured and wrapped with a best-effort object trace (reflection is used to extract compiler-generated fields). This can help debugging, but the object-trace logic relies on implementation details and may be brittle across engine or compiler changes.
+- Editor playmode transitions are handled via an internal cancellation system (`EditorPlayModeCancellation`) so outstanding awaiters are cancelled when exiting play mode to avoid orphaned work in the Editor.
+
+> [!IMPORTANT]
+> Always pass the `destroyCancellationToken` to async methods called from Unity events to avoid long running tasks after the object has been destroyed. This could lead to memory leaks or other unexpected behavior.
+>
+> For Unity versions prior to 2022.3, you can use the provided snippet to create a `CancellationToken` that is cancelled on `OnDestroy`.
+>
+> It is also recommended to always encapsulate async methods called from Unity events in try/catch blocks to handle exceptions properly, otherwise they can go unobserved and silently fail.
+
+#### Addressables
+
+If you install the addressables package, this package provides awaiters and exception propagation for `AsyncOperationHandle` and `AsyncOperationHandle<T>`. When awaiting Addressables operations the extension will rethrow operation exceptions so they propagate to your try/catch blocks.
+
+#### Editor Behavior
+
+When running in the Unity Editor the package uses `EditorCoroutineUtility` (where applicable) and registers awaiters for safe cancellation during play-mode state changes. This prevents many common pitfalls where awaited operations outlive the play session.
+
+#### WebGL Support
+
+Shamelessly lifted from <https://github.com/VolodymyrBS/WebGLThreadingPatcher>
+
+WebGL support is now supported, but be aware that long tasks will not run on the background thread and will block the main thread. All tasks will be executed by just one thread so any blocking calls will freeze whole application. Basically it similar to async/await behavior in Blazor.
+
+##### How does it work?
+
+`WebGLPostBuildCallback` uses a IIl2CppProcessor callback to rewrite entries in `mscorelib.dll` and change some method implementations. It changes `ThreadPool` methods that enqueue work items of delegate work to `SynchronizationContext` so all items will be executed in same thread. Also it patches `Timer` implementation to use Javascript timer functionality.
+
+> [!NOTE]
+> The package provides two pieces to improve ThreadPool/Timer behavior for WebGL builds:
+>
+> - `Editor/WebGL/WebGLPostBuildCallback.cs` — a post-build IL rewrite (Mono.Cecil) that adapts ThreadPool/Timer methods to post work to the Unity SynchronizationContext in the built player.
+> - `Plugins/SystemThreadingTimer.jslib` — a small JS library used by the patched Timer implementation.
+>
+> Even with these pieces, WebGL does not provide true background threads. The post-build patch makes queued work execute on the main thread rather than fail silently, but long-running CPU-bound work will still block the runtime. Avoid heavy CPU work on WebGL; prefer offloading work to a server or using WebAssembly-friendly patterns.
+
+## Samples & Tests
 
 ```csharp
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -59,13 +117,25 @@ using Utilities.Async;
 
 public class ExampleAsyncScript : MonoBehaviour
 {
+        // For backwards compatibility with older Unity versions use the following snippet:
+#if !UNITY_2022_3_OR_NEWER
+        private readonly CancellationTokenSource lifetimeCts = new();
+        // ReSharper disable once InconsistentNaming
+        private CancellationToken destroyCancellationToken => lifetimeCts.Token;
+
+        private void OnDestroy()
+        {
+            lifetimeCts?.Cancel();
+        }
+#endif // !UNITY_2022_3_OR_NEWER
+
     private async void Start()
     {
         try
         {
             // always encapsulate try/catch around
             // async methods called from unity events
-            await MyFunctionAsync().ConfigureAwait(false);
+            await MyFunctionAsync(destroyCancellationToken).ConfigureAwait(false);
 
             // Get back to the main unity thread
             await Awaiters.UnityMainThread;
@@ -81,12 +151,18 @@ public class ExampleAsyncScript : MonoBehaviour
             backgroundInvokedAction.InvokeOnMainThread();
 
             // await on IEnumerator functions as well
-            // for backwards compatibility or older code
+            // for backwards compatibility or older code.
+            // These can also be called from background threads
+            // and the context will switch to main thread
             await MyEnumerableFunction();
+            await new WaitForSeconds(1f);
+            await new WaitForEndOfFrame();
+            await new WaitForFixedUpdate();
 
             // you can even get progress callbacks for AsyncOperations!
             await SceneManager.LoadSceneAsync(0)
-                .WithProgress(new Progress<float>(f => Debug.Log(f)));
+                .WithProgress(new Progress<float>(f => Debug.Log(f)))
+                .WithCancellation(destroyCancellationToken);
         }
         catch (Exception e)
         {
@@ -99,9 +175,10 @@ public class ExampleAsyncScript : MonoBehaviour
         Debug.Log(Application.dataPath);
     }
 
-    private async Task MyFunctionAsync()
+    private async Task MyFunctionAsync(CancellationToken cancellationToken)
     {
-        await Task.Delay(1000);
+        // similar to Task.Delay(1000)
+        await Awaiters.DelayAsync(1000).ConfigureAwait(false);
     }
 
     private IEnumerator MyEnumerableFunction()
@@ -114,12 +191,9 @@ public class ExampleAsyncScript : MonoBehaviour
 }
 ```
 
-### WebGL Support
+The package includes a demo sample and unit tests to demonstrate typical usage and to verify main-thread/background-thread behavior:
 
-Shamelessly lifted from <https://github.com/VolodymyrBS/WebGLThreadingPatcher>
+- Sample: `Demo/ExampleAsyncScript.cs` — demonstrates `Awaiters.UnityMainThread`, `Awaiters.BackgroundThread`, awaiting yield instructions, and `.WithProgress().WithCancellation()` patterns.
+- Tests: `Packages/com.utilities.async/Tests/TestFixture_01.cs` — Unity test example that exercises Awaiters and coroutine awaiting.
 
-WebGL support is now supported, but be aware that long tasks will not run on the background thread and will block the main thread. All tasks will be executed by just one thread so any blocking calls will freeze whole application. Basically it similar to async/await behavior in Blazor.
-
-#### How does it work?
-
-`WebGLPostBuildCallback` uses a IIl2CppProcessor callback to rewrite entries in `mscorelib.dll` and change some method implementations. It changes `ThreadPool` methods that enqueue work items of delegate work to `SynchronizationContext` so all items will be executed in same thread. Also it patches `Timer` implementation to use Javascript timer functionality.
+Run the sample in the Unity editor or run the tests with the Unity Test Runner to validate behavior in your environment.

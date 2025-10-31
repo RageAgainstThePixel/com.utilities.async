@@ -26,11 +26,10 @@ using UnityEngine;
 
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using Utilities.Async.Internal;
 
 #endif
 
-namespace Utilities.Async.AwaitYieldInstructions
+namespace Utilities.Async
 {
     /// <summary>
     /// Helper class for continuing executions on a background thread.
@@ -38,6 +37,7 @@ namespace Utilities.Async.AwaitYieldInstructions
     public sealed class BackgroundThread : CustomYieldInstruction
     {
 #if !UNITY_WEBGL || UNITY_EDITOR
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ConfiguredTaskAwaitable.ConfiguredTaskAwaiter GetAwaiter()
         {
             return Task.Run(async () =>

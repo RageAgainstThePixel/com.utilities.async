@@ -23,7 +23,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Utilities.Async.AwaitYieldInstructions;
 
 namespace Utilities.Async
 {
@@ -35,13 +34,13 @@ namespace Utilities.Async
         /// <summary>
         /// Use this awaiter to continue execution on the main thread.
         /// </summary>
-        /// <remarks>Brings the execution back to the main thead on the next engine update.</remarks>
-        public static UnityMainThread UnityMainThread { get; } = new UnityMainThread();
+        /// <remarks>Brings the execution back to the main thread on the next engine update.</remarks>
+        public static UnityMainThread UnityMainThread { get; } = new();
 
         /// <summary>
         /// Use this awaiter to continue execution on the background thread.
         /// </summary>
-        public static BackgroundThread BackgroundThread { get; } = new BackgroundThread();
+        public static BackgroundThread BackgroundThread { get; } = new();
 
         /// <summary>
         /// Use this awaiter to wait until the condition is met.<para/>
@@ -62,51 +61,52 @@ namespace Utilities.Async
                 return await WaitUntil_Indefinite(element, predicate).ConfigureAwait(true);
             }
 
-            using (var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(timeout)))
+            using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(timeout));
+
+            var tcs = new TaskCompletionSource<object>();
+
+            void Exception()
             {
-                var tcs = new TaskCompletionSource<object>();
-
-                void Exception()
-                {
-                    tcs.TrySetException(new TimeoutException());
-                    tcs.TrySetCanceled();
-                }
-
-                cancellationTokenSource.Token.Register(Exception);
-#if UNITY_EDITOR
-                var editorCancelled = false;
-                UnityEditor.EditorApplication.playModeStateChanged += _ => editorCancelled = true;
-#endif
-
-                while (!cancellationTokenSource.IsCancellationRequested)
-                {
-#if UNITY_EDITOR
-                    if (editorCancelled)
-                    {
-                        tcs.TrySetCanceled(CancellationToken.None);
-                    }
-#endif
-                    try
-                    {
-                        if (!predicate(element))
-                        {
-                            await Task.Yield();
-                            continue;
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        tcs.TrySetException(e);
-                    }
-
-                    tcs.TrySetResult(Task.CompletedTask);
-                    break;
-                }
-
-                await tcs.Task.ConfigureAwait(true);
-
-                return element;
+                tcs.TrySetException(new TimeoutException());
+                tcs.TrySetCanceled();
             }
+
+            cancellationTokenSource.Token.Register(Exception);
+#if UNITY_EDITOR
+            var editorCancelled = false;
+            UnityEditor.EditorApplication.playModeStateChanged += _ => editorCancelled = true;
+#endif
+
+            while (!cancellationTokenSource.IsCancellationRequested)
+            {
+#if UNITY_EDITOR
+                if (editorCancelled)
+                {
+                    tcs.TrySetCanceled(CancellationToken.None);
+                }
+#endif
+                try
+                {
+                    if (!predicate(element))
+                    {
+                        await Task.Yield();
+
+                        continue;
+                    }
+                }
+                catch (Exception e)
+                {
+                    tcs.TrySetException(e);
+                }
+
+                tcs.TrySetResult(Task.CompletedTask);
+
+                break;
+            }
+
+            await tcs.Task.ConfigureAwait(true);
+
+            return element;
         }
 
         private static async Task<T> WaitUntil_Indefinite<T>(T element, Func<T, bool> predicate)
@@ -130,6 +130,7 @@ namespace Utilities.Async
                     if (!predicate(element))
                     {
                         await Task.Yield();
+
                         continue;
                     }
                 }
@@ -139,10 +140,12 @@ namespace Utilities.Async
                 }
 
                 tcs.TrySetResult(Task.CompletedTask);
+
                 break;
             }
 
             await tcs.Task.ConfigureAwait(true);
+
             return element;
         }
 
@@ -190,17 +193,25 @@ namespace Utilities.Async
         /// <param name="cancellationToken"></param>
         public static async Task DelayAsync(TimeSpan timeSpan, CancellationToken cancellationToken)
         {
-#if UNITY_WEBGL && !UNITY_EDITOR
-            var startTime = DateTime.UtcNow;
-            var endTime = startTime + timeSpan;
-            while (DateTime.UtcNow < endTime)
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                await Task.Yield();
-            }
+#if UNITY_WEBGL && !UNITY_EDITOR
+                var startTime = DateTime.UtcNow;
+                var endTime = startTime + timeSpan;
+                while (DateTime.UtcNow < endTime)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await Task.Yield();
+                }
 #else
-            await Task.Delay(timeSpan, cancellationToken).ConfigureAwait(true);
+                await Task.Delay(timeSpan, cancellationToken).ConfigureAwait(true);
 #endif
+
+            }
+            catch (Exception e)
+            {
+                throw new InvalidOperationException($"Failed to delay {timeSpan.ToString()}!", e);
+            }
         }
     }
 }
