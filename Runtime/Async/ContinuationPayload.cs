@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Threading;
 
 namespace Utilities.Async
 {
@@ -9,12 +10,13 @@ namespace Utilities.Async
     {
         private static readonly ConcurrentQueue<ContinuationPayload> payloadPool = new();
 
+        public ExecutionContext ExecutionContext;
         public Action<object> Action;
         public object State;
 
         private ContinuationPayload() { }
 
-        public static ContinuationPayload Rent(Action<object> action, object state)
+        public static ContinuationPayload Rent(Action<object> action, object state, ExecutionContext context = null)
         {
             if (!payloadPool.TryDequeue(out var payload))
             {
@@ -23,6 +25,7 @@ namespace Utilities.Async
 
             payload.Action = action;
             payload.State = state;
+            payload.ExecutionContext = context;
             return payload;
         }
 
@@ -30,6 +33,7 @@ namespace Utilities.Async
         {
             payload.Action = null;
             payload.State = null;
+            payload.ExecutionContext = null;
             payloadPool.Enqueue(payload);
         }
     }
