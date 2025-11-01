@@ -21,10 +21,10 @@ namespace Utilities.Async
 
         public bool IsCompleted => awaiter.IsCompleted;
 
-        public void OnCompleted(Action continuation)
+        void INotifyCompletion.OnCompleted(Action continuation)
             => awaiter.OnCompleted(continuation);
 
-        public void UnsafeOnCompleted(Action continuation)
+        void ICriticalNotifyCompletion.UnsafeOnCompleted(Action continuation)
             => awaiter.UnsafeOnCompleted(continuation);
 
         [UsedImplicitly]
@@ -55,10 +55,10 @@ namespace Utilities.Async
 
         public bool IsCompleted => awaiter.IsCompleted;
 
-        public void OnCompleted(Action continuation)
+        void INotifyCompletion.OnCompleted(Action continuation)
             => awaiter.OnCompleted(continuation);
 
-        public void UnsafeOnCompleted(Action continuation)
+        void ICriticalNotifyCompletion.UnsafeOnCompleted(Action continuation)
             => awaiter.UnsafeOnCompleted(continuation);
 
         [UsedImplicitly]

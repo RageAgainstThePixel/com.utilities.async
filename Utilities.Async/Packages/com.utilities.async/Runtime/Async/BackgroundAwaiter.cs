@@ -2,38 +2,43 @@
 
 using System;
 using System.Runtime.CompilerServices;
-using System.Threading;
+using System.Threading.Tasks;
 
 namespace Utilities.Async
 {
     public readonly struct BackgroundAwaiter : ICriticalNotifyCompletion, IAwaiter
     {
-        public bool IsCompleted => !SyncContextUtility.IsMainThread;
+        private readonly BackgroundWork work;
+        private readonly ValueTaskAwaiter awaiter;
+
+        private BackgroundAwaiter(BackgroundWork work)
+        {
+            this.work = work;
+            awaiter = new ValueTask(work, work.Version).GetAwaiter();
+        }
+
+        public static BackgroundAwaiter Run()
+            => new(BackgroundWork.Rent());
+
+        public bool IsCompleted => awaiter.IsCompleted;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void GetResult() { }
-
-        public void OnCompleted(Action continuation)
-            => UnsafeOnCompleted(continuation);
-
-        public void UnsafeOnCompleted(Action continuation)
+        public void GetResult()
         {
-#if UNITY_WEBGL
-            UnityEngine.Debug.LogWarning($"{nameof(BackgroundAwaiter)} not supported for {nameof(UnityEngine.RuntimePlatform.WebGLPlayer)}. Continued on MainThread");
-            continuation(); // WebGL does not support threads, so we just invoke the continuation directly.
-#else
-            ThreadPool.UnsafeQueueUserWorkItem(waitCallback, continuation);
-#endif
-        }
-
-        private static WaitCallback waitCallback = WaitCallback;
-
-        private static void WaitCallback(object state)
-        {
-            if (state is Action action)
+            try
             {
-                action.Invoke();
+                awaiter.GetResult();
+            }
+            finally
+            {
+                BackgroundWork.Return(work);
             }
         }
+
+        public void OnCompleted(Action continuation)
+            => awaiter.OnCompleted(continuation);
+
+        public void UnsafeOnCompleted(Action continuation)
+            => awaiter.UnsafeOnCompleted(continuation);
     }
 }
