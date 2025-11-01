@@ -23,50 +23,68 @@ namespace Utilities.Async.Tests
         [Test]
         public async Task Test_02_Async()
         {
-            Debug.Log($"{nameof(Test_02_Async)} starting...");
-            var stopwatch = Stopwatch.StartNew();
+            try
+            {
+                Debug.Log($"{nameof(Test_02_Async)} starting...");
+                var stopwatch = Stopwatch.StartNew();
 
-            // always encapsulate try/catch around
-            // async methods called from unity events
-            // this is a long running task that returns to main thread
-            await MyFunctionAsync().ConfigureAwait(true);
-            var isMainThread = SyncContextUtility.IsMainThread;
-            Debug.Log($"{nameof(MyFunctionAsync)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
-            Assert.IsTrue(isMainThread);
+                // always encapsulate try/catch around
+                // async methods called from unity events
+                // this is a long running task that returns to main thread
+                await MyFunctionAsync().ConfigureAwait(true);
+                var isMainThread = SyncContextUtility.IsMainThread;
+                Debug.Log($"{nameof(MyFunctionAsync)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
+                Assert.IsTrue(isMainThread);
 
-            // A long running task that ends up on a background thread
-            await MyFunctionAsync().ConfigureAwait(false);
-            isMainThread = SyncContextUtility.IsMainThread;
-            Debug.Log($"{nameof(MyFunctionAsync)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
-            Assert.IsFalse(isMainThread);
+                // A long running task that ends up on a background thread
+                await MyFunctionAsync().ConfigureAwait(false);
+                isMainThread = SyncContextUtility.IsMainThread;
+                Debug.Log($"{nameof(MyFunctionAsync)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
+                Assert.IsFalse(isMainThread);
 
-            // Get back to the main unity thread
-            await Awaiters.UnityMainThread;
-            isMainThread = SyncContextUtility.IsMainThread;
-            Debug.Log($"{nameof(Awaiters.UnityMainThread)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
-            Assert.IsTrue(isMainThread);
+                // Get back to the main unity thread
+                await Awaiters.UnityMainThread;
+                isMainThread = SyncContextUtility.IsMainThread;
+                Debug.Log($"{nameof(Awaiters.UnityMainThread)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
+                Assert.IsTrue(isMainThread);
 
-            // switch to background thread to do a long
-            // running process on background thread
-            await Awaiters.BackgroundThread;
-            isMainThread = SyncContextUtility.IsMainThread;
-            Debug.Log($"{nameof(Awaiters.BackgroundThread)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
-            Assert.IsFalse(isMainThread);
+                // switch to background thread to do a long
+                // running process on background thread
+                await Awaiters.BackgroundThread;
+                isMainThread = SyncContextUtility.IsMainThread;
+                Debug.Log($"{nameof(Awaiters.BackgroundThread)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
+#if UNITY_WEBGL
+                // Expect to still be on main thread in WebGL
+                Assert.IsTrue(isMainThread);
+#else
+                Assert.IsFalse(isMainThread);
+#endif
 
-            Action backgroundInvokedAction = BackgroundInvokedAction;
-            backgroundInvokedAction.InvokeOnMainThread();
+                Action backgroundInvokedAction = BackgroundInvokedAction;
+                backgroundInvokedAction.InvokeOnMainThread();
 
-            // should still be on background thread.
-            isMainThread = SyncContextUtility.IsMainThread;
-            Debug.Log($"{nameof(Awaiters.BackgroundThread)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
-            Assert.IsFalse(isMainThread);
+                // should still be on background thread.
+                isMainThread = SyncContextUtility.IsMainThread;
+                Debug.Log($"{nameof(Awaiters.BackgroundThread)} | {nameof(SyncContextUtility.IsMainThread)}? {isMainThread} | {stopwatch.ElapsedMilliseconds}");
+#if UNITY_WEBGL
+                // Expect to still be on main thread in WebGL
+                Assert.IsTrue(isMainThread);
+#else
+                Assert.IsFalse(isMainThread);
+#endif
 
-            // await on IEnumerator functions as well
-            // for backwards compatibility or older code
-            await MyEnumerableFunction();
-            Debug.Log($"{nameof(MyEnumerableFunction)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
+                // await on IEnumerator functions as well
+                // for backwards compatibility or older code
+                await MyEnumerableFunction();
+                Debug.Log($"{nameof(MyEnumerableFunction)} | {nameof(SyncContextUtility.IsMainThread)}? {SyncContextUtility.IsMainThread} | {stopwatch.ElapsedMilliseconds}");
 
-            Debug.Log($"{nameof(Test_02_Async)} Complete!");
+                Debug.Log($"{nameof(Test_02_Async)} Complete!");
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+                throw;
+            }
         }
 
         private void BackgroundInvokedAction()

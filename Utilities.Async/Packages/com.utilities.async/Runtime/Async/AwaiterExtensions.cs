@@ -238,17 +238,9 @@ namespace Utilities.Async
         public static YieldInstructionAwaiter GetAwaiter(this UnityMainThread instruction)
             => new(instruction);
 
-#if UNITY_WEBGL && !UNITY_EDITOR
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static YieldInstructionAwaiter GetAwaiter(this BackgroundThread instruction)
-        {
-            Debug.LogWarning($"{nameof(BackgroundThread)} not supported for {nameof(RuntimePlatform.WebGLPlayer)}");
-            return new YieldInstructionAwaiter(instruction);
-        }
-#else
-        public static ConfiguredTaskAwaitable.ConfiguredTaskAwaiter GetAwaiter(this BackgroundThread _)
-            => BackgroundThread.GetAwaiter();
-#endif // UNITY_WEBGL && !UNITY_EDITOR
+        public static BackgroundAwaiter GetAwaiter(this BackgroundThread _)
+            => new();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static YieldInstructionAwaiter GetAwaiter(this WaitForSeconds instruction)
