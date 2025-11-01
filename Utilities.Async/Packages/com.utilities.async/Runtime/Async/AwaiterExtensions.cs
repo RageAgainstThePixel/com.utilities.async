@@ -240,7 +240,7 @@ namespace Utilities.Async
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static BackgroundAwaiter GetAwaiter(this BackgroundThread _)
-            => BackgroundAwaiter.Run();
+            => new();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static YieldInstructionAwaiter GetAwaiter(this WaitForSeconds instruction)
