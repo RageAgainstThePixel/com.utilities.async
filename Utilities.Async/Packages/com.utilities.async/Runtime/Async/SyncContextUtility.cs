@@ -44,9 +44,11 @@ namespace Utilities.Async
         {
             if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode) { return; }
 
-            if (actionQueue.IsEmpty && continuationQueue.IsEmpty) { return; }
-
-            UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
+            if (!actionQueue.IsEmpty || 
+                !continuationQueue.IsEmpty)
+            {
+                UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
+            }
 
             if (executionMethod == null)
             {
