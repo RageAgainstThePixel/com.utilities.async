@@ -43,6 +43,9 @@ namespace Utilities.Async
         private static void ExecuteContinuations()
         {
             if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode) { return; }
+
+            if (actionQueue.IsEmpty && continuationQueue.IsEmpty) { return; }
+
             UnityEditor.EditorApplication.QueuePlayerLoopUpdate();
 
             if (executionMethod == null)
