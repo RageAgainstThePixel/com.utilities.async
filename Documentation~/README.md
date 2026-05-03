@@ -120,7 +120,6 @@ public class ExampleAsyncScript : MonoBehaviour
         // For backwards compatibility with older Unity versions use the following snippet:
 #if !UNITY_2022_3_OR_NEWER
         private readonly CancellationTokenSource lifetimeCts = new();
-        // ReSharper disable once InconsistentNaming
         private CancellationToken destroyCancellationToken => lifetimeCts.Token;
 
         private void OnDestroy()
