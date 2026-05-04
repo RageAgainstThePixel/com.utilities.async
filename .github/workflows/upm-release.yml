@@ -11,7 +11,7 @@ jobs:
     - uses: actions/checkout@v6
       with:
         fetch-depth: 0
-    - uses: RageAgainstThePixel/upm-release@v1
+    - uses: RageAgainstThePixel/upm-release@v2
       with:
         username: ${{ secrets.UNITY_USERNAME }}
         password: ${{ secrets.UNITY_PASSWORD }}

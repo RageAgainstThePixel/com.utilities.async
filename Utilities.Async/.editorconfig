@@ -11,6 +11,15 @@ root = true
 indent_size = 4
 indent_style = space
 tab_width = 4
+file_header_template= Licensed under the MIT License. See LICENSE in the project root for license information.
+
+# Sort usings alphabetically
+dotnet_sort_system_directives_first = false
+dotnet_sort_usings_first = true
+csharp_sort_usings_with_system_first = false
+resharper_csharp_sort_usings_with_system_first = false
+resharper_sort_usings_with_system_first = false
+sort_usings_with_system_first = false
 
 # New line preferences
 end_of_line = crlf
@@ -33,6 +42,15 @@ dotnet_style_predefined_type_for_locals_parameters_members = true
 
 # Code Style
 csharp_style_var_when_type_is_apparent = true
+
+## Diagnostics
+
+# don't warn about unused unity event functions
+dotnet_diagnostic.IDE0051.severity = none
+# don't warn about making field readonly
+dotnet_diagnostic.IDE0044.severity = none
+# don't warn about unassigned private field
+dotnet_diagnostic.CS0649.severity = none
 
 #### Resharper/Rider Rules ####
 # https://www.jetbrains.com/help/resharper/EditorConfig_Properties.html
@@ -73,3 +91,5 @@ resharper_unity_redundant_formerly_serialized_as_attribute_highlighting=error
 resharper_unity_unresolved_component_or_scriptable_object_highlighting=error
 resharper_use_name_of_instead_of_type_of_highlighting=error
 resharper_wrong_public_modifier_specification_highlighting=error
+resharper_async_void_lambda_highlighting=hint
+resharper_async_void_method_highlighting=hint
