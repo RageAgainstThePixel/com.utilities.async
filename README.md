@@ -12,8 +12,6 @@ For details on usage see the [associated blog post here](https://web.archive.org
 
 Requires Unity 2021.3 LTS or higher.
 
-Pull requests test the current Unity streams, and a monthly run covers the older lines.
-
 The recommended installation method is though the unity package manager and [OpenUPM](https://openupm.com/packages/com.utilities.async).
 
 ### Via Unity Package Manager and OpenUPM
