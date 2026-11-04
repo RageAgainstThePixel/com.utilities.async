@@ -18,7 +18,8 @@ namespace Utilities.Async
             awaiter = new ValueTask<object>(taskSource, taskSource.Version).GetAwaiter();
         }
 
-        public bool IsCompleted => awaiter.IsCompleted;
+        // off the main thread the work may already be done, but the continuation still has to get back to the main thread
+        public bool IsCompleted => SyncContextUtility.IsMainThread && awaiter.IsCompleted;
 
         public void OnCompleted(Action continuation)
             => awaiter.OnCompleted(continuation);
@@ -52,7 +53,8 @@ namespace Utilities.Async
             awaiter = new ValueTask<T>(taskSource, taskSource.Version).GetAwaiter();
         }
 
-        public bool IsCompleted => awaiter.IsCompleted;
+        // off the main thread the work may already be done, but the continuation still has to get back to the main thread
+        public bool IsCompleted => SyncContextUtility.IsMainThread && awaiter.IsCompleted;
 
         public void OnCompleted(Action continuation)
             => awaiter.OnCompleted(continuation);
