@@ -87,6 +87,18 @@ namespace Utilities.Async.Tests
             }
         }
 
+        [Test]
+        public async Task Test_03_UnityMainThread_FromBackgroundThread()
+        {
+            // the instruction can finish on the main thread before the background thread registers its continuation
+            for (var i = 0; i < 100; i++)
+            {
+                await Awaiters.BackgroundThread;
+                await Awaiters.UnityMainThread;
+                Assert.IsTrue(SyncContextUtility.IsMainThread);
+            }
+        }
+
         private void BackgroundInvokedAction()
         {
             var isMainThread = SyncContextUtility.IsMainThread;

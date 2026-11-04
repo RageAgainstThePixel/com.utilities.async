@@ -116,9 +116,16 @@ namespace Utilities.Async
 
         void IValueTaskSource<T>.OnCompleted(Action<object> completedContinuation, object state, short token, ValueTaskSourceOnCompletedFlags flags)
         {
-            if ((flags & ValueTaskSourceOnCompletedFlags.UseSchedulingContext) != 0 && SyncContextUtility.IsMainThread)
+            if ((flags & ValueTaskSourceOnCompletedFlags.UseSchedulingContext) != 0)
             {
                 flags &= ~ValueTaskSourceOnCompletedFlags.UseSchedulingContext;
+
+                if (!SyncContextUtility.IsMainThread)
+                {
+                    // the work can finish before this registers, and the core would then run the continuation on this thread
+                    core.OnCompleted(_ => SyncContextUtility.ScheduleContinuation(completedContinuation, state), null, token, flags);
+                    return;
+                }
             }
 
             core.OnCompleted(completedContinuation, state, token, flags);
